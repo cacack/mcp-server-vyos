@@ -139,9 +139,7 @@ async def vyos_load(file: str) -> dict:
 
 
 @mcp.tool()
-async def vyos_merge(
-    file: str | None = None, string: str | None = None
-) -> dict:
+async def vyos_merge(file: str | None = None, string: str | None = None) -> dict:
     """Merge a configuration into the running config.
 
     Provide either a file path on the router or an inline
