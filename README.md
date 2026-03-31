@@ -1,11 +1,11 @@
-# vyos-mcp
+# mcp-server-vyos
 
 MCP server for VyOS router management via the HTTPS REST API. Provides both router management tools and live VyOS documentation lookup.
 
 ## Installation
 
 ```bash
-pip install vyos-mcp
+pip install mcp-server-vyos
 ```
 
 ## Configuration
@@ -35,7 +35,7 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "vyos": {
-      "command": "vyos-mcp",
+      "command": "mcp-server-vyos",
       "env": {
         "VYOS_URL": "https://vyos.example.com",
         "VYOS_API_KEY": "your-api-key"

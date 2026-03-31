@@ -1,0 +1,10 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "extra-files": [
+        "src/vyos_mcp/__init__.py"
+      ]
+    }
+  }
+}

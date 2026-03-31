@@ -7,7 +7,7 @@ from mcp.server.fastmcp import FastMCP
 from vyos_mcp.client import VyOSClient
 from vyos_mcp.docs import DocsClient
 
-mcp = FastMCP("vyos-mcp")
+mcp = FastMCP("mcp-server-vyos")
 
 _docs_client = DocsClient()
 

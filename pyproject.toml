@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vyos-mcp"
+name = "mcp-server-vyos"
 version = "0.1.0"
 description = "MCP server for VyOS router management via the HTTPS REST API"
 readme = "README.md"
@@ -37,7 +37,10 @@ dev = [
 ]
 
 [project.scripts]
-vyos-mcp = "vyos_mcp.server:main"
+mcp-server-vyos = "vyos_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vyos_mcp"]
 
 [tool.ruff]
 target-version = "py311"

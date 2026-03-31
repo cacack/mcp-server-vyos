@@ -19,7 +19,6 @@ python -m vyos_mcp  # run server (stdio transport)
 - `src/vyos_mcp/server.py` — MCP server, tool registration (FastMCP)
 - `src/vyos_mcp/client.py` — VyOS REST API client (auth, TLS, form-encoded)
 - `src/vyos_mcp/docs.py` — VyOS docs client (GitHub API, TTL cache)
-- `src/vyos_mcp/tools/` — Placeholder for domain-grouped tool implementations
 
 ## Key Design Decisions
 
