@@ -29,13 +29,9 @@ class VyOSClient:
         if not self.api_key:
             raise ValueError("API key required (pass api_key= or set VYOS_API_KEY)")
 
-    async def _post(
-        self, endpoint: str, data: dict | list
-    ) -> dict:
+    async def _post(self, endpoint: str, data: dict | list) -> dict:
         """Send a form-encoded POST request to the VyOS API."""
-        async with httpx.AsyncClient(
-            verify=self.verify_ssl, timeout=30
-        ) as client:
+        async with httpx.AsyncClient(verify=self.verify_ssl, timeout=30) as client:
             response = await client.post(
                 f"{self.url}/{endpoint}",
                 data={
@@ -82,9 +78,7 @@ class VyOSClient:
 
     async def confirm(self) -> dict:
         """Confirm a pending commit-confirm."""
-        return await self._post(
-            "configure", {"op": "confirm", "path": []}
-        )
+        return await self._post("configure", {"op": "confirm", "path": []})
 
     async def save(self, file: str | None = None) -> dict:
         """Save running config to disk."""
@@ -97,9 +91,7 @@ class VyOSClient:
         """Load a configuration file."""
         return await self._post("config-file", {"op": "load", "file": file})
 
-    async def merge(
-        self, file: str | None = None, string: str | None = None
-    ) -> dict:
+    async def merge(self, file: str | None = None, string: str | None = None) -> dict:
         """Merge a configuration file or string into running config."""
         payload: dict = {"op": "merge"}
         if file:
@@ -126,9 +118,7 @@ class VyOSClient:
 
     async def poweroff(self) -> dict:
         """Power off the router."""
-        return await self._post(
-            "poweroff", {"op": "poweroff", "path": ["now"]}
-        )
+        return await self._post("poweroff", {"op": "poweroff", "path": ["now"]})
 
     async def image_add(self, url: str) -> dict:
         """Add a system image from a URL."""
@@ -140,9 +130,7 @@ class VyOSClient:
 
     async def info(self) -> dict:
         """Get system info (no auth required)."""
-        async with httpx.AsyncClient(
-            verify=self.verify_ssl, timeout=30
-        ) as client:
+        async with httpx.AsyncClient(verify=self.verify_ssl, timeout=30) as client:
             response = await client.get(f"{self.url}/info")
             response.raise_for_status()
             return response.json()

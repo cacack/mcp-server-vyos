@@ -46,8 +46,7 @@ class DocsClient:
         paths = [
             item["path"]
             for item in resp.json()["tree"]
-            if item["path"].startswith(DOCS_PREFIX)
-            and item["path"].endswith(".rst")
+            if item["path"].startswith(DOCS_PREFIX) and item["path"].endswith(".rst")
         ]
 
         self._tree_cache = CacheEntry(
@@ -74,9 +73,7 @@ class DocsClient:
         )
         return content
 
-    async def search(
-        self, query: str, max_results: int = 10
-    ) -> list[dict[str, str]]:
+    async def search(self, query: str, max_results: int = 10) -> list[dict[str, str]]:
         """Search doc paths for a query string.
 
         Returns matching paths ranked by relevance. Splits query into
