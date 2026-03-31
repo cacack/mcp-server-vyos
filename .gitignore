@@ -11,5 +11,7 @@ build/
 venv/
 .env
 .pytest_cache/
+.coverage
+coverage.xml
 .ruff_cache/
 *.lock
