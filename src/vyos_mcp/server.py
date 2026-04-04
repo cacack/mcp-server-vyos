@@ -15,6 +15,7 @@ _docs_client = DocsClient()
 
 _MUTATING_TOOLS = {
     "vyos_configure",
+    "vyos_validate",
     "vyos_confirm",
     "vyos_save",
     "vyos_load",
@@ -103,6 +104,27 @@ async def vyos_show(path: list[str]) -> dict:
     """
     client = _get_client()
     return await client.show(path)
+
+
+@mcp.tool()
+async def vyos_validate(commands: list[dict]) -> dict:
+    """Validate VyOS configuration syntax without persisting changes.
+
+    Applies commands with a 1-minute commit-confirm window and does NOT
+    confirm, so the router automatically rolls back. This is not a true
+    dry-run — the configuration is temporarily applied for up to 1 minute.
+
+    A successful response means the syntax is valid. An error means the
+    commands contain invalid syntax or paths.
+
+    Args:
+        commands: List of config operations, each with 'op'
+            ('set'/'delete') and 'path' (list of strings).
+            Example: [{"op": "set", "path": ["firewall",
+            "group", "network-group", "MY_GROUP"]}]
+    """
+    client = _get_client()
+    return await client.validate(commands)
 
 
 @mcp.tool()

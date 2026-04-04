@@ -15,6 +15,7 @@ EXPECTED_TOOLS = [
     "vyos_exists",
     "vyos_config_diff",
     "vyos_show",
+    "vyos_validate",
     "vyos_configure",
     "vyos_confirm",
     "vyos_save",
@@ -59,7 +60,7 @@ def test_no_unexpected_tools():
 
 def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(mcp._tool_manager._tools) == 19
+    assert len(mcp._tool_manager._tools) == 20
 
 
 class TestToolHandlers:
@@ -74,6 +75,7 @@ class TestToolHandlers:
         client.exists.return_value = {"data": True}
         client.config_diff.return_value = {"data": "diff output"}
         client.show.return_value = {"data": "output"}
+        client.validate.return_value = {"success": True}
         client.configure_confirm.return_value = {"success": True}
         client.confirm.return_value = {"success": True}
         client.save.return_value = {"success": True}
@@ -151,6 +153,15 @@ class TestToolHandlers:
             result = await vyos_show(["interfaces"])
         mock_client.show.assert_called_once_with(["interfaces"])
         assert result == {"data": "output"}
+
+    async def test_vyos_validate(self, mock_client):
+        from vyos_mcp.server import vyos_validate
+
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_validate(cmds)
+        mock_client.validate.assert_called_once_with(cmds)
+        assert result == {"success": True}
 
     async def test_vyos_configure(self, mock_client):
         from vyos_mcp.server import vyos_configure
