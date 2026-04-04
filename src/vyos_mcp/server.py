@@ -64,6 +64,21 @@ async def vyos_exists(path: list[str]) -> dict:
 
 
 @mcp.tool()
+async def vyos_config_diff(rev: int | None = None) -> dict:
+    """Show configuration differences.
+
+    Compares running config against saved config by default,
+    or against a specific revision number. Useful for previewing
+    changes before committing or reviewing what has drifted.
+
+    Args:
+        rev: Optional revision number to compare against
+    """
+    client = _get_client()
+    return await client.config_diff(rev)
+
+
+@mcp.tool()
 async def vyos_show(path: list[str]) -> dict:
     """Run a VyOS operational show command.
 

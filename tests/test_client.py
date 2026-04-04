@@ -140,6 +140,18 @@ class TestPayloads:
             "config-file", {"op": "merge", "string": cfg}
         )
 
+    async def test_config_diff_default(self, client):
+        await client.config_diff()
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["configuration", "compare"]}
+        )
+
+    async def test_config_diff_with_rev(self, client):
+        await client.config_diff(rev=5)
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["configuration", "compare", "5"]}
+        )
+
     async def test_show(self, client):
         await client.show(["interfaces"])
         client._post.assert_called_once_with(
