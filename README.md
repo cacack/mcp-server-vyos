@@ -85,6 +85,7 @@ This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_retu
 | `vyos_exists` | Check if a config path exists |
 | `vyos_config_diff` | Show config differences (saved vs running, or by revision) |
 | `vyos_show` | Run operational show commands |
+| `vyos_validate` | Validate config syntax (temporary apply with auto-rollback) |
 | `vyos_configure` | Apply config with commit-confirm (safe default) |
 | `vyos_confirm` | Confirm a pending commit-confirm |
 | `vyos_save` | Save running config to disk |

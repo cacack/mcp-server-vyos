@@ -87,6 +87,14 @@ class TestPayloads:
         await client.configure(cmds)
         client._post.assert_called_once_with("configure", cmds)
 
+    async def test_validate(self, client):
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        await client.validate(cmds)
+        client._post.assert_called_once_with(
+            "configure",
+            [{"op": "set", "path": ["interfaces", "dummy", "dum0"], "confirm_time": 1}],
+        )
+
     async def test_configure_confirm_single(self, client):
         cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
         await client.configure_confirm(cmds, confirm_minutes=3)

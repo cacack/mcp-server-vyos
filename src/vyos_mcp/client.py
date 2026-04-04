@@ -76,6 +76,15 @@ class VyOSClient:
         ]
         return await self._post("configure", payload)
 
+    async def validate(self, commands: list[dict]) -> dict:
+        """Validate configuration commands without persisting.
+
+        Uses commit-confirm with a 1-minute rollback window and does not
+        confirm, so the router automatically reverts.  This is not a true
+        dry-run — the configuration is temporarily applied.
+        """
+        return await self.configure_confirm(commands, confirm_minutes=1)
+
     async def confirm(self) -> dict:
         """Confirm a pending commit-confirm."""
         return await self._post("configure", {"op": "confirm", "path": []})
