@@ -100,6 +100,17 @@ class VyOSClient:
             payload["string"] = string
         return await self._post("config-file", payload)
 
+    async def config_diff(self, rev: int | None = None) -> dict:
+        """Show configuration differences.
+
+        Compares running config against saved config, or against a
+        specific revision number.
+        """
+        path = ["configuration", "compare"]
+        if rev is not None:
+            path.append(str(rev))
+        return await self.show(path)
+
     async def show(self, path: list[str]) -> dict:
         """Run an operational show command."""
         return await self._post("show", {"op": "show", "path": path})

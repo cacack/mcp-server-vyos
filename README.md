@@ -61,6 +61,7 @@ Add to your MCP client configuration:
 | `vyos_retrieve` | Read configuration at a path |
 | `vyos_return_values` | Get multi-valued config node values |
 | `vyos_exists` | Check if a config path exists |
+| `vyos_config_diff` | Show config differences (saved vs running, or by revision) |
 | `vyos_show` | Run operational show commands |
 | `vyos_configure` | Apply config with commit-confirm (safe default) |
 | `vyos_confirm` | Confirm a pending commit-confirm |
