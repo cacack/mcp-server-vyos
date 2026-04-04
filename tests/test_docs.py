@@ -1,6 +1,7 @@
 """Tests for VyOS documentation client."""
 
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -75,3 +76,83 @@ class TestSearch:
             assert r["path"].endswith(".rst")
             assert not r["title"].startswith("docs/")
             assert not r["title"].endswith(".rst")
+
+
+class TestGetTree:
+    """Test get_tree fetches and caches the file list from GitHub."""
+
+    async def test_fetches_from_github(self):
+        client = DocsClient()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "tree": [
+                {"path": "docs/configuration/firewall/groups.rst", "type": "blob"},
+                {"path": "docs/configuration/nat/index.rst", "type": "blob"},
+                {"path": "docs/Makefile", "type": "blob"},
+                {"path": "src/something.py", "type": "blob"},
+            ]
+        }
+        mock_response.raise_for_status = lambda: None
+
+        with patch("vyos_mcp.docs.httpx.AsyncClient") as mock_cls:
+            mock_http = AsyncMock()
+            mock_http.get.return_value = mock_response
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__.return_value = mock_http
+            mock_cls.return_value = mock_ctx
+
+            paths = await client.get_tree()
+
+        assert paths == [
+            "docs/configuration/firewall/groups.rst",
+            "docs/configuration/nat/index.rst",
+        ]
+
+    async def test_uses_cache_on_second_call(self):
+        client = DocsClient()
+        client._tree_cache = CacheEntry(
+            data=["docs/cached.rst"],
+            expires_at=time.monotonic() + 3600,
+        )
+
+        with patch("vyos_mcp.docs.httpx.AsyncClient") as mock_cls:
+            paths = await client.get_tree()
+            mock_cls.assert_not_called()
+
+        assert paths == ["docs/cached.rst"]
+
+
+class TestReadPage:
+    """Test read_page fetches and caches doc content."""
+
+    async def test_fetches_page(self):
+        client = DocsClient()
+        mock_response = MagicMock()
+        mock_response.text = "Firewall Groups\n===============\n\nContent."
+        mock_response.raise_for_status = lambda: None
+
+        with patch("vyos_mcp.docs.httpx.AsyncClient") as mock_cls:
+            mock_http = AsyncMock()
+            mock_http.get.return_value = mock_response
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__.return_value = mock_http
+            mock_cls.return_value = mock_ctx
+
+            content = await client.read_page("docs/configuration/firewall/groups.rst")
+
+        assert content == "Firewall Groups\n===============\n\nContent."
+        assert "docs/configuration/firewall/groups.rst" in client._page_cache
+
+    async def test_uses_cache_on_second_call(self):
+        client = DocsClient()
+        path = "docs/cached.rst"
+        client._page_cache[path] = CacheEntry(
+            data="cached content",
+            expires_at=time.monotonic() + 3600,
+        )
+
+        with patch("vyos_mcp.docs.httpx.AsyncClient") as mock_cls:
+            content = await client.read_page(path)
+            mock_cls.assert_not_called()
+
+        assert content == "cached content"
