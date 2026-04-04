@@ -225,3 +225,23 @@ class TestPostEncoding:
             await client._post("show", {"op": "show", "path": []})
 
             mock_cls.assert_called_once_with(verify=True, timeout=30)
+
+    async def test_info_uses_get(self):
+        from unittest.mock import MagicMock
+
+        client = make_client()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"version": "1.4.0"}
+        mock_response.raise_for_status = lambda: None
+
+        with patch("vyos_mcp.client.httpx.AsyncClient") as mock_cls:
+            mock_http = AsyncMock()
+            mock_http.get.return_value = mock_response
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__.return_value = mock_http
+            mock_cls.return_value = mock_ctx
+
+            result = await client.info()
+
+            mock_http.get.assert_called_once_with(f"{URL}/info")
+            assert result == {"version": "1.4.0"}
