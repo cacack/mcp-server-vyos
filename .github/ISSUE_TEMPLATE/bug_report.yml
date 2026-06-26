@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a bug in mcp-server-vyos
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below.
+
+        ⚠️ Do not include secrets — redact `VYOS_API_KEY`, router URLs, and any
+        sensitive configuration from logs and snippets.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear description of what went wrong
+      placeholder: Calling the configure tool with commit-confirm returns a timeout even though the change applied...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal MCP tool call(s) or steps to reproduce the issue
+      placeholder: |
+        1. Call tool `configure` with op `set`, path `[...]`
+        2. Observe the response
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Include error output (redacted).
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: mcp-server-vyos Version
+      description: Package version (e.g. output of `pip show vyos-mcp`)
+      placeholder: 0.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: Output of `python --version`
+      placeholder: Python 3.13.0
+    validations:
+      required: true
+
+  - type: input
+    id: vyos-version
+    attributes:
+      label: VyOS Version
+      description: VyOS router version the server is talking to
+      placeholder: VyOS 1.4 (sagitta)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      options:
+        - MCP server / tools (server.py)
+        - VyOS REST client (client.py)
+        - Documentation client (docs.py)
+        - Packaging / CI
+        - Other
+    validations:
+      required: true

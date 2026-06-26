@@ -1,0 +1,56 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe what you'd like to see.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Clear description of the feature you'd like
+      placeholder: Add an MCP tool to manage DHCP server leases...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Why do you need this feature? What problem does it solve?
+      placeholder: I want to inspect and clear DHCP leases without SSHing into the router...
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed Tool / API (Optional)
+      description: If you have ideas for the MCP tool shape or VyOS endpoints involved
+      placeholder: |
+        Tool: dhcp_leases(op="show" | "clear", interface="eth0")
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      options:
+        - MCP server / tools (server.py)
+        - VyOS REST client (client.py)
+        - Documentation client (docs.py)
+        - Packaging / CI
+        - New capability
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to contribute this feature

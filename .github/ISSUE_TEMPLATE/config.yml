@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: VyOS Documentation
+    url: https://docs.vyos.io/
+    about: Official VyOS documentation for router configuration
+  - name: Model Context Protocol
+    url: https://modelcontextprotocol.io/
+    about: MCP specification and client/server reference

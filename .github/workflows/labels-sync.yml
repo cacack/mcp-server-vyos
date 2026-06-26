@@ -1,0 +1,54 @@
+name: Sync labels
+
+# Sync repo labels from .github/labels.json. Creates missing labels and
+# updates color/description on existing ones. Never deletes — orphaned
+# labels are reported as warnings for manual cleanup.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/labels.json'
+      - '.github/workflows/labels-sync.yml'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Sync labels from .github/labels.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          jq empty .github/labels.json
+
+          existing=$(gh label list --limit 200 --json name,color,description)
+
+          jq -c '.[]' .github/labels.json | while read -r label; do
+            name=$(jq -r '.name' <<<"$label")
+            color=$(jq -r '.color' <<<"$label")
+            desc=$(jq -r '.description // ""' <<<"$label")
+            if jq -e --arg n "$name" '.[] | select(.name == $n)' <<<"$existing" >/dev/null; then
+              echo "Updating: $name"
+              gh label edit "$name" --color "$color" --description "$desc"
+            else
+              echo "Creating: $name"
+              gh label create "$name" --color "$color" --description "$desc"
+            fi
+          done
+
+          jq -r '.[].name' <<<"$existing" | sort > /tmp/existing.txt
+          jq -r '.[].name' .github/labels.json | sort > /tmp/desired.txt
+          orphans=$(comm -23 /tmp/existing.txt /tmp/desired.txt || true)
+          if [ -n "$orphans" ]; then
+            echo "::warning::Labels on GitHub but not tracked in labels.json (not deleted):"
+            printf '%s\n' "$orphans"
+          fi
