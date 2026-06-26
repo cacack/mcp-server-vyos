@@ -1,0 +1,104 @@
+name: Nightly
+
+on:
+  schedule:
+    # Run nightly at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+# Restrict default GITHUB_TOKEN permissions (principle of least privilege).
+# Per-job permissions scope additional writes where they're needed.
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Security Scan (Nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+      with:
+        python-version: '3.13'
+
+    # pip-audit: authoritative CVE audit of resolved dependencies against the
+    # PyPI advisory database. Fails the job on any known vulnerability so the
+    # notify step opens a tracking issue.
+    - name: Run pip-audit
+      run: |
+        pip install -e . pip-audit
+        pip-audit --desc
+
+    - name: Trivy filesystem scan
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+      continue-on-error: true
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+
+    - name: Upload Trivy results
+      uses: github/codeql-action/upload-sarif@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      if: (success() || failure()) && hashFiles('trivy-results.sarif') != ''
+      with:
+        sarif_file: trivy-results.sarif
+        category: trivy
+
+  notify:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [security]
+    if: failure() && github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+      with:
+        egress-policy: audit
+
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+    - name: Create issue on failure
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Check if an open nightly failure issue already exists
+        EXISTING=$(gh issue list --label "nightly-failure" --state open --json number --jq '.[0].number')
+        if [ -n "$EXISTING" ]; then
+          gh issue comment "$EXISTING" --body "Nightly workflow failed again on $(date -u +%Y-%m-%d).
+
+        [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          echo "Commented on existing issue #$EXISTING"
+          exit 0
+        fi
+
+        gh issue create \
+          --title "Nightly workflow failure ($(date -u +%Y-%m-%d))" \
+          --label "nightly-failure" \
+          --body "The nightly workflow failed on $(date -u +%Y-%m-%d).
+
+        **Security scan**: ${{ needs.security.result }}
+
+        [View full run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+        ---
+        This issue was created automatically. Close it once the failure is resolved."

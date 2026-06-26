@@ -1,0 +1,39 @@
+version: 2
+updates:
+  # Python dependencies (pip ecosystem covers pyproject.toml + uv.lock)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    cooldown:
+      default-days: 5
+      include:
+        - "*"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    cooldown:
+      default-days: 5
+      include:
+        - "*"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github_actions"

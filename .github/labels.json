@@ -1,0 +1,38 @@
+[
+  { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+  { "name": "documentation", "color": "0075ca", "description": "Improvements or additions to documentation" },
+  { "name": "duplicate", "color": "cfd3d7", "description": "This issue or pull request already exists" },
+  { "name": "enhancement", "color": "a2eeef", "description": "New feature or request" },
+  { "name": "good first issue", "color": "7057ff", "description": "Good for newcomers" },
+  { "name": "help wanted", "color": "008672", "description": "Extra attention is needed" },
+  { "name": "invalid", "color": "e4e669", "description": "This doesn't seem right" },
+  { "name": "question", "color": "d876e3", "description": "Further information is requested" },
+  { "name": "wontfix", "color": "ffffff", "description": "This will not be worked on" },
+
+  { "name": "chore", "color": "c2e0c6", "description": "Non-user-facing tooling/build work" },
+  { "name": "tracking", "color": "bfd4f2", "description": "Meta/planning issue for future phase breakdown" },
+
+  { "name": "area:ci", "color": "1d76db", "description": "CI, release automation, build infra" },
+  { "name": "area:server", "color": "1d76db", "description": "MCP server and tool registration" },
+  { "name": "area:client", "color": "1d76db", "description": "VyOS REST API client" },
+  { "name": "area:docs", "color": "1d76db", "description": "VyOS documentation client" },
+
+  { "name": "value:high", "color": "d93f0b", "description": "High user/project value" },
+  { "name": "value:medium", "color": "fbca04", "description": "Medium user/project value" },
+  { "name": "value:low", "color": "fef2c0", "description": "Low user/project value" },
+
+  { "name": "effort:high", "color": "0052cc", "description": "High implementation effort" },
+  { "name": "effort:medium", "color": "5319e7", "description": "Medium implementation effort" },
+  { "name": "effort:low", "color": "c5def5", "description": "Low implementation effort" },
+
+  { "name": "priority:high", "color": "b60205", "description": "High priority (derived from value/effort)" },
+  { "name": "priority:medium", "color": "fbca04", "description": "Medium priority (derived from value/effort)" },
+  { "name": "priority:low", "color": "0e8a16", "description": "Low priority (derived from value/effort)" },
+
+  { "name": "autorelease: pending", "color": "ededed", "description": "Managed by release-please" },
+  { "name": "autorelease: tagged", "color": "ededed", "description": "Managed by release-please" },
+  { "name": "dependencies", "color": "0366d6", "description": "Pull requests that update a dependency file" },
+  { "name": "github_actions", "color": "000000", "description": "Pull requests that update GitHub Actions code" },
+  { "name": "python", "color": "2b67c6", "description": "Pull requests that update Python code" },
+  { "name": "nightly-failure", "color": "ededed", "description": "Nightly workflow produced a failure" }
+]
