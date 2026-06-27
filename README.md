@@ -71,7 +71,7 @@ For safe, query-only access (monitoring, investigation, documentation lookup), e
 }
 ```
 
-This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_return_values`, `vyos_exists`, `vyos_config_diff`, `vyos_show`, `vyos_docs_search`, and `vyos_docs_read`.
+This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_return_values`, `vyos_exists`, `vyos_config_diff`, `vyos_config_history`, `vyos_show`, `vyos_docs_search`, and `vyos_docs_read`.
 
 ## Tools
 
@@ -84,6 +84,7 @@ This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_retu
 | `vyos_return_values` | Get multi-valued config node values |
 | `vyos_exists` | Check if a config path exists |
 | `vyos_config_diff` | Show config differences (saved vs running, or by revision) |
+| `vyos_config_history` | List config revision history (number, timestamp, user, method) |
 | `vyos_show` | Run operational show commands |
 | `vyos_validate` | Validate config syntax (temporary apply with auto-rollback) |
 | `vyos_configure` | Apply config with commit-confirm (safe default) |

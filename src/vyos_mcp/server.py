@@ -96,6 +96,22 @@ async def vyos_config_diff(rev: int | None = None) -> dict:
 
 
 @mcp.tool()
+async def vyos_config_history() -> list[dict]:
+    """List configuration revision history.
+
+    Returns the numbered config revisions VyOS retains, newest first,
+    each with its timestamp, the user who committed it, the method
+    (e.g. cli, vyos-http-api), and an optional comment. Pair with
+    vyos_config_diff(rev) to inspect what changed in a given revision.
+
+    Note: VyOS exposes no rollback endpoint over the HTTP API, so this
+    server can report revision history but cannot revert to a revision.
+    """
+    client = _get_client()
+    return await client.config_history()
+
+
+@mcp.tool()
 async def vyos_show(path: list[str]) -> dict:
     """Run a VyOS operational show command.
 

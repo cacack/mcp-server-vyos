@@ -14,6 +14,7 @@ EXPECTED_TOOLS = [
     "vyos_return_values",
     "vyos_exists",
     "vyos_config_diff",
+    "vyos_config_history",
     "vyos_show",
     "vyos_validate",
     "vyos_configure",
@@ -37,6 +38,7 @@ READ_ONLY_TOOLS = [
     "vyos_return_values",
     "vyos_exists",
     "vyos_config_diff",
+    "vyos_config_history",
     "vyos_show",
     "vyos_docs_search",
     "vyos_docs_read",
@@ -60,7 +62,7 @@ def test_no_unexpected_tools():
 
 def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(mcp._tool_manager._tools) == 20
+    assert len(mcp._tool_manager._tools) == 21
 
 
 class TestToolHandlers:
@@ -74,6 +76,15 @@ class TestToolHandlers:
         client.return_values.return_value = {"data": ["10.0.0.1/24"]}
         client.exists.return_value = {"data": True}
         client.config_diff.return_value = {"data": "diff output"}
+        client.config_history.return_value = [
+            {
+                "revision": 0,
+                "timestamp": "2026-05-04 02:02:02",
+                "user": "root",
+                "via": "cli",
+                "comment": None,
+            }
+        ]
         client.show.return_value = {"data": "output"}
         client.validate.return_value = {"success": True}
         client.configure_confirm.return_value = {"success": True}
@@ -145,6 +156,22 @@ class TestToolHandlers:
             result = await vyos_config_diff(rev=3)
         mock_client.config_diff.assert_called_once_with(3)
         assert result == {"data": "diff output"}
+
+    async def test_vyos_config_history(self, mock_client):
+        from vyos_mcp.server import vyos_config_history
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_config_history()
+        mock_client.config_history.assert_called_once()
+        assert result == [
+            {
+                "revision": 0,
+                "timestamp": "2026-05-04 02:02:02",
+                "user": "root",
+                "via": "cli",
+                "comment": None,
+            }
+        ]
 
     async def test_vyos_show(self, mock_client):
         from vyos_mcp.server import vyos_show
@@ -325,4 +352,4 @@ class TestReadOnlyMode:
     def test_read_only_tool_count(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        assert len(mcp_ro._tool_manager._tools) == 8
+        assert len(mcp_ro._tool_manager._tools) == 9
