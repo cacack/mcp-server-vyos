@@ -12,12 +12,12 @@ _COMMIT_RE = re.compile(
     r"^\s*(\d+)\s+"  # revision number
     r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"  # timestamp
     r"by\s+(\S+)\s+"  # user
-    r"via\s+(\S+)"  # commit method
+    r"via\s+(\S+)"  # via
     r"(?:\s+(.*\S))?\s*$"  # optional comment
 )
 
 
-def parse_commit_history(raw: str) -> list[dict]:
+def _parse_commit_history(raw: str) -> list[dict]:
     """Parse `show system commit` output into structured revisions.
 
     Each line looks like:
@@ -156,9 +156,17 @@ class VyOSClient:
             path.append(str(rev))
         return await self.show(path)
 
-    async def config_history(self) -> dict:
-        """List configuration commit revisions (show system commit)."""
-        return await self.show(["system", "commit"])
+    async def config_history(self) -> list[dict]:
+        """List configuration commit revisions, newest first.
+
+        Runs `show system commit` and parses the result into structured
+        revisions (revision, timestamp, user, via, comment). An empty
+        list means no revisions matched the expected format (no history,
+        or the router returned a non-text/error response).
+        """
+        result = await self.show(["system", "commit"])
+        data = result.get("data")
+        return _parse_commit_history(data if isinstance(data, str) else "")
 
     async def show(self, path: list[str]) -> dict:
         """Run an operational show command."""

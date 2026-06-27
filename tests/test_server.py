@@ -76,12 +76,15 @@ class TestToolHandlers:
         client.return_values.return_value = {"data": ["10.0.0.1/24"]}
         client.exists.return_value = {"data": True}
         client.config_diff.return_value = {"data": "diff output"}
-        client.config_history.return_value = {
-            "data": " 0  2026-05-04 02:02:02  by root  via cli\n"
-            " 1  2026-04-21 02:22:25  by vyos  via vyos-http-api  tweak\n",
-            "success": True,
-            "error": None,
-        }
+        client.config_history.return_value = [
+            {
+                "revision": 0,
+                "timestamp": "2026-05-04 02:02:02",
+                "user": "root",
+                "via": "cli",
+                "comment": None,
+            }
+        ]
         client.show.return_value = {"data": "output"}
         client.validate.return_value = {"success": True}
         client.configure_confirm.return_value = {"success": True}
@@ -167,14 +170,7 @@ class TestToolHandlers:
                 "user": "root",
                 "via": "cli",
                 "comment": None,
-            },
-            {
-                "revision": 1,
-                "timestamp": "2026-04-21 02:22:25",
-                "user": "vyos",
-                "via": "vyos-http-api",
-                "comment": "tweak",
-            },
+            }
         ]
 
     async def test_vyos_show(self, mock_client):

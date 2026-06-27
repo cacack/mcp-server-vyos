@@ -6,7 +6,7 @@ import os
 
 from mcp.server.fastmcp import FastMCP
 
-from vyos_mcp.client import VyOSClient, parse_commit_history
+from vyos_mcp.client import VyOSClient
 from vyos_mcp.docs import DocsClient
 
 mcp = FastMCP("mcp-server-vyos")
@@ -108,8 +108,7 @@ async def vyos_config_history() -> list[dict]:
     server can report revision history but cannot revert to a revision.
     """
     client = _get_client()
-    result = await client.config_history()
-    return parse_commit_history(result.get("data") or "")
+    return await client.config_history()
 
 
 @mcp.tool()

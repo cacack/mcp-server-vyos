@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from vyos_mcp.client import VyOSClient, parse_commit_history
+from vyos_mcp.client import VyOSClient, _parse_commit_history
 
 URL = "https://vyos.example.com"
 KEY = "test-key"
@@ -166,6 +166,27 @@ class TestPayloads:
             "show", {"op": "show", "path": ["system", "commit"]}
         )
 
+    async def test_config_history_parses_data(self, client):
+        client._post.return_value = {
+            "success": True,
+            "data": " 0  2026-05-04 02:02:02  by root  via cli\n",
+            "error": None,
+        }
+        assert await client.config_history() == [
+            {
+                "revision": 0,
+                "timestamp": "2026-05-04 02:02:02",
+                "user": "root",
+                "via": "cli",
+                "comment": None,
+            }
+        ]
+
+    async def test_config_history_non_string_data_returns_empty(self, client):
+        # An error response (data is None, or any non-string) yields [].
+        client._post.return_value = {"success": False, "data": None, "error": "boom"}
+        assert await client.config_history() == []
+
     async def test_show(self, client):
         await client.show(["interfaces"])
         client._post.assert_called_once_with(
@@ -281,7 +302,7 @@ class TestParseCommitHistory:
             " 0  2026-05-04 02:02:02  by root  via vyos-boot-config-loader\n"
             "10  2026-03-30 22:16:12  by vyos  via cli\n"
         )
-        assert parse_commit_history(raw) == [
+        assert _parse_commit_history(raw) == [
             {
                 "revision": 0,
                 "timestamp": "2026-05-04 02:02:02",
@@ -300,7 +321,7 @@ class TestParseCommitHistory:
 
     def test_with_comment(self):
         raw = " 3  2026-04-21 01:48:42  by vyos  via cli  added firewall rule"
-        assert parse_commit_history(raw) == [
+        assert _parse_commit_history(raw) == [
             {
                 "revision": 3,
                 "timestamp": "2026-04-21 01:48:42",
@@ -311,5 +332,5 @@ class TestParseCommitHistory:
         ]
 
     def test_empty_and_garbage_skipped(self):
-        assert parse_commit_history("") == []
-        assert parse_commit_history("not a revision line\n\n") == []
+        assert _parse_commit_history("") == []
+        assert _parse_commit_history("not a revision line\n\n") == []
