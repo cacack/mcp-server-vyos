@@ -166,6 +166,49 @@ async def vyos_system_resources() -> dict:
 
 
 @mcp.tool()
+async def vyos_route_table(family: str = "ip", protocol: str | None = None) -> dict:
+    """Show the routing table / RIB (`show ip route` / `show ipv6 route`).
+
+    Raises ValueError (propagated to the caller) if family or protocol is
+    not one of the documented values.
+
+    Args:
+        family: Address family — "ip" (IPv4, default) or "ipv6".
+        protocol: Optional source filter — one of bgp, ospf, ospfv3,
+            static, connected, kernel, rip, isis. Omit for all routes.
+    """
+    client = _get_client()
+    return await client.route_table(family, protocol)
+
+
+@mcp.tool()
+async def vyos_firewall_stats() -> dict:
+    """Show firewall and NAT rule hit counters.
+
+    Returns a dict keyed by 'firewall', 'nat_source', and
+    'nat_destination', each holding the corresponding `show` output. On
+    partial failure the affected key holds an error dict with
+    "success": false and "error" set — check "success" before using
+    "data"; the commands that succeeded are still returned. Most useful
+    on routers with complex rulesets.
+    """
+    client = _get_client()
+    return await client.firewall_stats()
+
+
+@mcp.tool()
+async def vyos_bgp_summary() -> dict:
+    """Show the BGP neighbor summary (`show bgp summary`).
+
+    Neighbor state, uptime, and prefixes received per peer across all
+    address families. Most useful on routers running BGP; if BGP is not
+    running, the router returns an error response ("success": false).
+    """
+    client = _get_client()
+    return await client.bgp_summary()
+
+
+@mcp.tool()
 async def vyos_validate(commands: list[dict]) -> dict:
     """Validate VyOS configuration syntax without persisting changes.
 

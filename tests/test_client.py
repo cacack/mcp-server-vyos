@@ -243,8 +243,80 @@ class TestPayloads:
         assert result["memory"] == {
             "success": False,
             "data": None,
-            "error": "boom",
+            "error": "RuntimeError: boom",
         }
+
+    async def test_route_table_default(self, client):
+        await client.route_table()
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["ip", "route"]}
+        )
+
+    async def test_route_table_ipv6(self, client):
+        await client.route_table("ipv6")
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["ipv6", "route"]}
+        )
+
+    async def test_route_table_with_protocol(self, client):
+        await client.route_table("ip", "bgp")
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["ip", "route", "bgp"]}
+        )
+
+    async def test_route_table_protocol_uses_default_family(self, client):
+        await client.route_table(protocol="bgp")
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["ip", "route", "bgp"]}
+        )
+
+    async def test_route_table_rejects_bad_family(self, client):
+        with pytest.raises(ValueError, match="Invalid route family"):
+            await client.route_table("ipx")
+        client._post.assert_not_called()
+
+    async def test_route_table_rejects_bad_protocol(self, client):
+        with pytest.raises(ValueError, match="Invalid route protocol"):
+            await client.route_table("ip", "haxx")
+        client._post.assert_not_called()
+
+    async def test_firewall_stats(self, client):
+        client._post.return_value = {"success": True, "data": "x", "error": None}
+        result = await client.firewall_stats()
+        assert set(result) == {"firewall", "nat_source", "nat_destination"}
+        assert result["firewall"] == {"success": True, "data": "x", "error": None}
+        client._post.assert_has_calls(
+            [
+                call("show", {"op": "show", "path": ["firewall"]}),
+                call("show", {"op": "show", "path": ["nat", "source", "statistics"]}),
+                call(
+                    "show",
+                    {"op": "show", "path": ["nat", "destination", "statistics"]},
+                ),
+            ],
+            any_order=True,
+        )
+
+    async def test_firewall_stats_partial_failure(self, client):
+        def side_effect(endpoint, data):
+            if data["path"] == ["firewall"]:
+                raise RuntimeError("boom")
+            return {"success": True, "data": "ok", "error": None}
+
+        client._post.side_effect = side_effect
+        result = await client.firewall_stats()
+        assert result["firewall"] == {
+            "success": False,
+            "data": None,
+            "error": "RuntimeError: boom",
+        }
+        assert result["nat_source"] == {"success": True, "data": "ok", "error": None}
+
+    async def test_bgp_summary(self, client):
+        await client.bgp_summary()
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["bgp", "summary"]}
+        )
 
     async def test_generate(self, client):
         await client.generate(["pki", "wireguard", "key-pair"])
