@@ -123,6 +123,49 @@ async def vyos_show(path: list[str]) -> dict:
 
 
 @mcp.tool()
+async def vyos_traceroute(host: str) -> dict:
+    """Traceroute to a host from the router.
+
+    Returns the API response with an mtr report (per-hop loss and
+    latency) in its data field. Useful for diagnosing reachability and
+    path issues from the router's perspective. The host must be a valid
+    hostname or IP address.
+
+    Args:
+        host: Destination hostname or IP, e.g. "8.8.8.8"
+    """
+    client = _get_client()
+    return await client.traceroute(host)
+
+
+@mcp.tool()
+async def vyos_interface_stats(interface: list[str] | None = None) -> dict:
+    """Show interface statistics: RX/TX counters, errors, link state.
+
+    With no argument, returns the summary table for all interfaces.
+    Pass an interface spec as path elements (e.g. ["ethernet", "eth0"])
+    to get detailed byte/packet/error counters for a single interface.
+
+    Args:
+        interface: Optional interface path elements, e.g. ["ethernet", "eth0"]
+    """
+    client = _get_client()
+    return await client.interface_stats(interface)
+
+
+@mcp.tool()
+async def vyos_system_resources() -> dict:
+    """Get router system resources: CPU, memory, storage, and uptime.
+
+    Returns a dict keyed by resource (cpu, memory, storage, uptime),
+    each holding the corresponding `show system ...` output. Handy for
+    a quick health snapshot of the router.
+    """
+    client = _get_client()
+    return await client.system_resources()
+
+
+@mcp.tool()
 async def vyos_validate(commands: list[dict]) -> dict:
     """Validate VyOS configuration syntax without persisting changes.
 

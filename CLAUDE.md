@@ -36,6 +36,7 @@ python -m vyos_mcp  # run server (stdio transport)
 - `commit-confirm` uses `confirm_time` as a field on the command dict, not a separate operation
 - `reboot`/`poweroff` require `"path": ["now"]`
 - `/retrieve` supports three ops: `showConfig`, `returnValues`, `exists`
+- `ping`/`traceroute` are NOT `show` subcommands — `/show` rejects them. `/traceroute` is a dedicated endpoint taking `{"op": "traceroute", "host": ...}` and returns an mtr report in `data`. There is no `/ping` endpoint (absent from the API's OpenAPI schema)
 
 ## Testing
 
