@@ -16,6 +16,9 @@ EXPECTED_TOOLS = [
     "vyos_config_diff",
     "vyos_config_history",
     "vyos_show",
+    "vyos_traceroute",
+    "vyos_interface_stats",
+    "vyos_system_resources",
     "vyos_validate",
     "vyos_configure",
     "vyos_confirm",
@@ -40,6 +43,9 @@ READ_ONLY_TOOLS = [
     "vyos_config_diff",
     "vyos_config_history",
     "vyos_show",
+    "vyos_traceroute",
+    "vyos_interface_stats",
+    "vyos_system_resources",
     "vyos_docs_search",
     "vyos_docs_read",
 ]
@@ -62,7 +68,7 @@ def test_no_unexpected_tools():
 
 def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(mcp._tool_manager._tools) == 21
+    assert len(mcp._tool_manager._tools) == 24
 
 
 class TestToolHandlers:
@@ -86,6 +92,17 @@ class TestToolHandlers:
             }
         ]
         client.show.return_value = {"data": "output"}
+        client.traceroute.return_value = {"data": {"report": {}}}
+        # Distinct values per arg so a handler that ignores `interface` fails.
+        client.interface_stats.side_effect = lambda interface=None: (
+            {"data": "all-ifaces"} if interface is None else {"data": "one-iface"}
+        )
+        client.system_resources.return_value = {
+            "cpu": {"data": "cpu"},
+            "memory": {"data": "mem"},
+            "storage": {"data": "disk"},
+            "uptime": {"data": "up"},
+        }
         client.validate.return_value = {"success": True}
         client.configure_confirm.return_value = {"success": True}
         client.confirm.return_value = {"success": True}
@@ -180,6 +197,43 @@ class TestToolHandlers:
             result = await vyos_show(["interfaces"])
         mock_client.show.assert_called_once_with(["interfaces"])
         assert result == {"data": "output"}
+
+    async def test_vyos_traceroute(self, mock_client):
+        from vyos_mcp.server import vyos_traceroute
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_traceroute("8.8.8.8")
+        mock_client.traceroute.assert_called_once_with("8.8.8.8")
+        assert result == {"data": {"report": {}}}
+
+    async def test_vyos_interface_stats_all(self, mock_client):
+        from vyos_mcp.server import vyos_interface_stats
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_interface_stats()
+        mock_client.interface_stats.assert_called_once_with(None)
+        assert result == {"data": "all-ifaces"}
+
+    async def test_vyos_interface_stats_one(self, mock_client):
+        from vyos_mcp.server import vyos_interface_stats
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_interface_stats(["ethernet", "eth0"])
+        mock_client.interface_stats.assert_called_once_with(["ethernet", "eth0"])
+        assert result == {"data": "one-iface"}
+
+    async def test_vyos_system_resources(self, mock_client):
+        from vyos_mcp.server import vyos_system_resources
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_system_resources()
+        mock_client.system_resources.assert_called_once()
+        assert result == {
+            "cpu": {"data": "cpu"},
+            "memory": {"data": "mem"},
+            "storage": {"data": "disk"},
+            "uptime": {"data": "up"},
+        }
 
     async def test_vyos_validate(self, mock_client):
         from vyos_mcp.server import vyos_validate
@@ -352,4 +406,4 @@ class TestReadOnlyMode:
     def test_read_only_tool_count(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        assert len(mcp_ro._tool_manager._tools) == 9
+        assert len(mcp_ro._tool_manager._tools) == 12

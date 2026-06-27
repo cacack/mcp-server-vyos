@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
 
 import httpx
+
+# Hosts reach the router's traceroute utility as a command argument; restrict
+# to characters valid in hostnames and IP addresses (incl. IPv6 colons).
+_HOST_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+
+
+def _validate_host(host: str) -> str:
+    """Return host if it is a plausible hostname/IP, else raise ValueError."""
+    if not host or not _HOST_RE.match(host):
+        raise ValueError(f"Invalid host: {host!r}")
+    return host
+
 
 _COMMIT_RE = re.compile(
     r"^\s*(\d+)\s+"  # revision number
@@ -171,6 +184,48 @@ class VyOSClient:
     async def show(self, path: list[str]) -> dict:
         """Run an operational show command."""
         return await self._post("show", {"op": "show", "path": path})
+
+    async def traceroute(self, host: str) -> dict:
+        """Traceroute to a host from the router.
+
+        Uses the dedicated /traceroute endpoint. The returned API response
+        carries an mtr report (per-hop loss and latency) in its data field.
+        Raises ValueError if host is not a plausible hostname or IP address.
+        """
+        payload = {"op": "traceroute", "host": _validate_host(host)}
+        return await self._post("traceroute", payload)
+
+    async def interface_stats(self, interface: list[str] | None = None) -> dict:
+        """Show interface statistics (counters, errors, link state).
+
+        With no argument, returns the summary table for all interfaces.
+        Pass an interface spec as path elements (e.g. ["ethernet", "eth0"])
+        to get detailed RX/TX byte/packet/error counters for one interface.
+        """
+        return await self.show(["interfaces"] + (interface or []))
+
+    async def system_resources(self) -> dict:
+        """Get CPU, memory, storage, and uptime in one call.
+
+        Runs the four `show system ...` operational commands concurrently and
+        returns their responses keyed by resource. Each value is the full show
+        response dict (raw text in its data field). If a single command fails,
+        its value is an error dict instead, so a partial failure still returns
+        the resources that succeeded.
+        """
+        resources = ["cpu", "memory", "storage", "uptime"]
+        results = await asyncio.gather(
+            *(self.show(["system", name]) for name in resources),
+            return_exceptions=True,
+        )
+        return {
+            name: (
+                {"success": False, "data": None, "error": str(result)}
+                if isinstance(result, Exception)
+                else result
+            )
+            for name, result in zip(resources, results)
+        }
 
     async def generate(self, path: list[str]) -> dict:
         """Run a generate command."""

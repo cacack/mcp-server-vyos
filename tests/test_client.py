@@ -1,7 +1,7 @@
 """Tests for VyOS API client."""
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 
@@ -192,6 +192,59 @@ class TestPayloads:
         client._post.assert_called_once_with(
             "show", {"op": "show", "path": ["interfaces"]}
         )
+
+    async def test_traceroute(self, client):
+        await client.traceroute("8.8.8.8")
+        client._post.assert_called_once_with(
+            "traceroute", {"op": "traceroute", "host": "8.8.8.8"}
+        )
+
+    async def test_traceroute_rejects_bad_host(self, client):
+        with pytest.raises(ValueError, match="Invalid host"):
+            await client.traceroute("8.8.8.8; rm -rf /")
+        client._post.assert_not_called()
+
+    async def test_interface_stats_all(self, client):
+        await client.interface_stats()
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["interfaces"]}
+        )
+
+    async def test_interface_stats_one(self, client):
+        await client.interface_stats(["ethernet", "eth0"])
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["interfaces", "ethernet", "eth0"]}
+        )
+
+    async def test_system_resources(self, client):
+        client._post.return_value = {"success": True, "data": "x", "error": None}
+        result = await client.system_resources()
+        assert set(result) == {"cpu", "memory", "storage", "uptime"}
+        assert result["cpu"] == {"success": True, "data": "x", "error": None}
+        client._post.assert_has_calls(
+            [
+                call("show", {"op": "show", "path": ["system", "cpu"]}),
+                call("show", {"op": "show", "path": ["system", "memory"]}),
+                call("show", {"op": "show", "path": ["system", "storage"]}),
+                call("show", {"op": "show", "path": ["system", "uptime"]}),
+            ],
+            any_order=True,
+        )
+
+    async def test_system_resources_partial_failure(self, client):
+        def side_effect(endpoint, data):
+            if data["path"] == ["system", "memory"]:
+                raise RuntimeError("boom")
+            return {"success": True, "data": "ok", "error": None}
+
+        client._post.side_effect = side_effect
+        result = await client.system_resources()
+        assert result["cpu"] == {"success": True, "data": "ok", "error": None}
+        assert result["memory"] == {
+            "success": False,
+            "data": None,
+            "error": "boom",
+        }
 
     async def test_generate(self, client):
         await client.generate(["pki", "wireguard", "key-pair"])
