@@ -4,8 +4,44 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 import httpx
+
+_COMMIT_RE = re.compile(
+    r"^\s*(\d+)\s+"  # revision number
+    r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"  # timestamp
+    r"by\s+(\S+)\s+"  # user
+    r"via\s+(\S+)"  # commit method
+    r"(?:\s+(.*\S))?\s*$"  # optional comment
+)
+
+
+def parse_commit_history(raw: str) -> list[dict]:
+    """Parse `show system commit` output into structured revisions.
+
+    Each line looks like:
+        ` 0  2026-05-04 02:02:02  by root  via cli  some comment`
+
+    Returns a list of dicts with revision (int), timestamp, user, via,
+    and comment (None when absent). Unparseable lines are skipped.
+    """
+    revisions = []
+    for line in raw.splitlines():
+        match = _COMMIT_RE.match(line)
+        if not match:
+            continue
+        rev, timestamp, user, via, comment = match.groups()
+        revisions.append(
+            {
+                "revision": int(rev),
+                "timestamp": timestamp,
+                "user": user,
+                "via": via,
+                "comment": comment,
+            }
+        )
+    return revisions
 
 
 class VyOSClient:
@@ -119,6 +155,10 @@ class VyOSClient:
         if rev is not None:
             path.append(str(rev))
         return await self.show(path)
+
+    async def config_history(self) -> dict:
+        """List configuration commit revisions (show system commit)."""
+        return await self.show(["system", "commit"])
 
     async def show(self, path: list[str]) -> dict:
         """Run an operational show command."""

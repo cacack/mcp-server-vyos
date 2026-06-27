@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from vyos_mcp.client import VyOSClient
+from vyos_mcp.client import VyOSClient, parse_commit_history
 
 URL = "https://vyos.example.com"
 KEY = "test-key"
@@ -160,6 +160,12 @@ class TestPayloads:
             "show", {"op": "show", "path": ["configuration", "compare", "5"]}
         )
 
+    async def test_config_history(self, client):
+        await client.config_history()
+        client._post.assert_called_once_with(
+            "show", {"op": "show", "path": ["system", "commit"]}
+        )
+
     async def test_show(self, client):
         await client.show(["interfaces"])
         client._post.assert_called_once_with(
@@ -265,3 +271,45 @@ class TestPostEncoding:
 
             mock_http.get.assert_called_once_with(f"{URL}/info")
             assert result == {"version": "1.4.0"}
+
+
+class TestParseCommitHistory:
+    """Verify parsing of `show system commit` output."""
+
+    def test_basic_lines(self):
+        raw = (
+            " 0  2026-05-04 02:02:02  by root  via vyos-boot-config-loader\n"
+            "10  2026-03-30 22:16:12  by vyos  via cli\n"
+        )
+        assert parse_commit_history(raw) == [
+            {
+                "revision": 0,
+                "timestamp": "2026-05-04 02:02:02",
+                "user": "root",
+                "via": "vyos-boot-config-loader",
+                "comment": None,
+            },
+            {
+                "revision": 10,
+                "timestamp": "2026-03-30 22:16:12",
+                "user": "vyos",
+                "via": "cli",
+                "comment": None,
+            },
+        ]
+
+    def test_with_comment(self):
+        raw = " 3  2026-04-21 01:48:42  by vyos  via cli  added firewall rule"
+        assert parse_commit_history(raw) == [
+            {
+                "revision": 3,
+                "timestamp": "2026-04-21 01:48:42",
+                "user": "vyos",
+                "via": "cli",
+                "comment": "added firewall rule",
+            }
+        ]
+
+    def test_empty_and_garbage_skipped(self):
+        assert parse_commit_history("") == []
+        assert parse_commit_history("not a revision line\n\n") == []
