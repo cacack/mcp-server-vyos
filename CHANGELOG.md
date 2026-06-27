@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/cacack/mcp-server-vyos/compare/v0.2.0...v0.3.0) (2026-06-27)
+
+
+### Features
+
+* add vyos_config_history tool ([59f88e6](https://github.com/cacack/mcp-server-vyos/commit/59f88e6c71a9d1d2541e2105085003a829e0d611))
+* **server:** add operational diagnostics tools ([b343832](https://github.com/cacack/mcp-server-vyos/commit/b3438325cb2e807874a1b1f9e155dcbf018f3674))
+* **server:** add operational diagnostics tools ([f8cfe8d](https://github.com/cacack/mcp-server-vyos/commit/f8cfe8d343b51841122c402de8905675ad15e2af))
+* **server:** add vyos_config_history tool ([b95866a](https://github.com/cacack/mcp-server-vyos/commit/b95866a197278b663a9d51430c8b7c2094550d67)), closes [#10](https://github.com/cacack/mcp-server-vyos/issues/10)
+
 ## [0.2.0](https://github.com/cacack/mcp-server-vyos/compare/v0.1.0...v0.2.0) (2026-04-04)
 
 
