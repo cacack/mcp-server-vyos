@@ -19,6 +19,9 @@ EXPECTED_TOOLS = [
     "vyos_traceroute",
     "vyos_interface_stats",
     "vyos_system_resources",
+    "vyos_route_table",
+    "vyos_firewall_stats",
+    "vyos_bgp_summary",
     "vyos_validate",
     "vyos_configure",
     "vyos_confirm",
@@ -46,6 +49,9 @@ READ_ONLY_TOOLS = [
     "vyos_traceroute",
     "vyos_interface_stats",
     "vyos_system_resources",
+    "vyos_route_table",
+    "vyos_firewall_stats",
+    "vyos_bgp_summary",
     "vyos_docs_search",
     "vyos_docs_read",
 ]
@@ -68,7 +74,7 @@ def test_no_unexpected_tools():
 
 def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(mcp._tool_manager._tools) == 24
+    assert len(mcp._tool_manager._tools) == 27
 
 
 class TestToolHandlers:
@@ -103,6 +109,16 @@ class TestToolHandlers:
             "storage": {"data": "disk"},
             "uptime": {"data": "up"},
         }
+        # Distinct value per arg so a handler that drops family/protocol fails.
+        client.route_table.side_effect = lambda family="ip", protocol=None: {
+            "data": f"{family}-route" + (f"-{protocol}" if protocol else "")
+        }
+        client.firewall_stats.return_value = {
+            "firewall": {"data": "fw"},
+            "nat_source": {"data": "snat"},
+            "nat_destination": {"data": "dnat"},
+        }
+        client.bgp_summary.return_value = {"data": "bgp-summary"}
         client.validate.return_value = {"success": True}
         client.configure_confirm.return_value = {"success": True}
         client.confirm.return_value = {"success": True}
@@ -234,6 +250,42 @@ class TestToolHandlers:
             "storage": {"data": "disk"},
             "uptime": {"data": "up"},
         }
+
+    async def test_vyos_route_table_default(self, mock_client):
+        from vyos_mcp.server import vyos_route_table
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_route_table()
+        mock_client.route_table.assert_called_once_with("ip", None)
+        assert result == {"data": "ip-route"}
+
+    async def test_vyos_route_table_filtered(self, mock_client):
+        from vyos_mcp.server import vyos_route_table
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_route_table("ipv6", "bgp")
+        mock_client.route_table.assert_called_once_with("ipv6", "bgp")
+        assert result == {"data": "ipv6-route-bgp"}
+
+    async def test_vyos_firewall_stats(self, mock_client):
+        from vyos_mcp.server import vyos_firewall_stats
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_firewall_stats()
+        mock_client.firewall_stats.assert_called_once()
+        assert result == {
+            "firewall": {"data": "fw"},
+            "nat_source": {"data": "snat"},
+            "nat_destination": {"data": "dnat"},
+        }
+
+    async def test_vyos_bgp_summary(self, mock_client):
+        from vyos_mcp.server import vyos_bgp_summary
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_bgp_summary()
+        mock_client.bgp_summary.assert_called_once()
+        assert result == {"data": "bgp-summary"}
 
     async def test_vyos_validate(self, mock_client):
         from vyos_mcp.server import vyos_validate
@@ -406,4 +458,4 @@ class TestReadOnlyMode:
     def test_read_only_tool_count(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        assert len(mcp_ro._tool_manager._tools) == 12
+        assert len(mcp_ro._tool_manager._tools) == 15

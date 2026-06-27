@@ -21,6 +21,29 @@ def _validate_host(host: str) -> str:
     return host
 
 
+_ROUTE_FAMILIES = frozenset({"ip", "ipv6"})
+_ROUTE_PROTOCOLS = frozenset(
+    {"bgp", "ospf", "ospfv3", "static", "connected", "kernel", "rip", "isis"}
+)
+
+
+def _validate_route_family(family: str) -> str:
+    """Return family if it is 'ip' or 'ipv6', else raise ValueError."""
+    if family not in _ROUTE_FAMILIES:
+        raise ValueError(f"Invalid route family: {family!r} (expected 'ip' or 'ipv6')")
+    return family
+
+
+def _validate_route_protocol(protocol: str) -> str:
+    """Return protocol if it is a known routing source, else raise ValueError."""
+    if protocol not in _ROUTE_PROTOCOLS:
+        raise ValueError(
+            f"Invalid route protocol: {protocol!r} "
+            f"(expected one of {', '.join(sorted(_ROUTE_PROTOCOLS))})"
+        )
+    return protocol
+
+
 _COMMIT_RE = re.compile(
     r"^\s*(\d+)\s+"  # revision number
     r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+"  # timestamp
@@ -220,12 +243,70 @@ class VyOSClient:
         )
         return {
             name: (
-                {"success": False, "data": None, "error": str(result)}
+                {
+                    "success": False,
+                    "data": None,
+                    "error": f"{type(result).__name__}: {result}",
+                }
                 if isinstance(result, Exception)
                 else result
             )
             for name, result in zip(resources, results)
         }
+
+    async def route_table(
+        self, family: str = "ip", protocol: str | None = None
+    ) -> dict:
+        """Show the routing table (RIB).
+
+        family is 'ip' (IPv4) or 'ipv6'. An optional protocol filters to a
+        single source (bgp, ospf, static, connected, ...). Maps to
+        `show ip route [protocol]` / `show ipv6 route [protocol]`. Raises
+        ValueError on an unknown family or protocol.
+        """
+        path = [_validate_route_family(family), "route"]
+        if protocol is not None:
+            path.append(_validate_route_protocol(protocol))
+        return await self.show(path)
+
+    async def firewall_stats(self) -> dict:
+        """Show firewall and NAT rule statistics in one call.
+
+        Runs `show firewall`, `show nat source statistics`, and `show nat
+        destination statistics` concurrently, keyed by 'firewall',
+        'nat_source', and 'nat_destination'. If a single command fails its
+        value is an error dict, so a partial failure still returns the
+        parts that succeeded.
+        """
+        commands = {
+            "firewall": ["firewall"],
+            "nat_source": ["nat", "source", "statistics"],
+            "nat_destination": ["nat", "destination", "statistics"],
+        }
+        results = await asyncio.gather(
+            *(self.show(path) for path in commands.values()),
+            return_exceptions=True,
+        )
+        return {
+            name: (
+                {
+                    "success": False,
+                    "data": None,
+                    "error": f"{type(result).__name__}: {result}",
+                }
+                if isinstance(result, Exception)
+                else result
+            )
+            for name, result in zip(commands, results)
+        }
+
+    async def bgp_summary(self) -> dict:
+        """Show the BGP neighbor summary (`show bgp summary`).
+
+        FRR's unified summary across address families: neighbor state,
+        uptime, and prefixes received per peer.
+        """
+        return await self.show(["bgp", "summary"])
 
     async def generate(self, path: list[str]) -> dict:
         """Run a generate command."""
