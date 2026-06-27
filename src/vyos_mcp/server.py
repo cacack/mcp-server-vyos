@@ -188,15 +188,25 @@ async def vyos_validate(commands: list[dict]) -> dict:
 
 @mcp.tool()
 async def vyos_configure(commands: list[dict]) -> dict:
-    """Apply VyOS configuration with commit-confirm (auto-rollback after 5 min).
+    """Apply a list of VyOS config changes atomically with commit-confirm.
 
-    This is the safe default — changes auto-revert unless confirmed with vyos_confirm.
+    Every operation in `commands` is applied in a single commit-confirm
+    window — the whole batch commits or rolls back together, never
+    partially. Prefer batching all related set/delete changes into one
+    call rather than making several sequential calls; this is faster and
+    keeps related changes atomic.
+
+    This is the safe default — changes auto-revert after 5 minutes unless
+    confirmed with vyos_confirm.
 
     Args:
         commands: List of config operations, each with 'op'
-            ('set'/'delete') and 'path' (list of strings).
-            Example: [{"op": "set", "path": ["firewall",
-            "group", "network-group", "MY_GROUP"]}]
+            ('set'/'delete') and 'path' (list of strings). Pass as many
+            as belong together. Example:
+            [{"op": "set", "path": ["firewall", "group",
+              "network-group", "MY_GROUP", "network", "10.0.0.0/8"]},
+             {"op": "set", "path": ["firewall", "group",
+              "network-group", "MY_GROUP", "network", "192.168.0.0/16"]}]
     """
     client = _get_client()
     return await client.configure_confirm(commands)

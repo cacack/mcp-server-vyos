@@ -119,6 +119,7 @@ Documentation is fetched live from the [vyos-documentation](https://github.com/v
 ## Safety
 
 - Configuration changes use `commit-confirm` by default -- changes auto-revert after 5 minutes unless confirmed with `vyos_confirm`
+- `vyos_configure` accepts a list of operations applied atomically in one commit-confirm -- batch related changes into a single call so they commit or roll back together
 - Destructive operations (`vyos_reboot`, `vyos_poweroff`, `vyos_image_delete`) include warning descriptions
 - API keys are never logged or included in tool outputs
 - Self-signed TLS certificates are accepted by default (common on VyOS)
