@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/cacack/mcp-server-vyos/compare/v0.3.0...v0.4.0) (2026-06-29)
+
+
+### Features
+
+* **docs:** full-text content search with snippets for vyos_docs_search ([e6fc378](https://github.com/cacack/mcp-server-vyos/commit/e6fc37898c775a82939a87d0600d633b42b8d7dc))
+* **docs:** full-text content search with snippets for vyos_docs_search ([f1bb98e](https://github.com/cacack/mcp-server-vyos/commit/f1bb98e4e2651252a8cfc70fe5b23edbbd1dc340))
+* **server:** add routing, firewall, and BGP visibility tools ([f96436e](https://github.com/cacack/mcp-server-vyos/commit/f96436e397a1e6cff0f40e1e8228d30a4ebf2d8e))
+* **server:** add routing, firewall, and BGP visibility tools ([f80d719](https://github.com/cacack/mcp-server-vyos/commit/f80d71914ae5f5fde7fb1bf8a615053b258f82e4))
+
+
+### Documentation
+
+* **server:** make batching explicit in vyos_configure ([aa990db](https://github.com/cacack/mcp-server-vyos/commit/aa990dbdc587fb136a15e1cc0ed8c0339c907758))
+* **server:** make batching explicit in vyos_configure ([085ca40](https://github.com/cacack/mcp-server-vyos/commit/085ca4017d1bd39a86a4d79628892b6b322c4589))
+
 ## [0.3.0](https://github.com/cacack/mcp-server-vyos/compare/v0.2.0...v0.3.0) (2026-06-27)
 
 
