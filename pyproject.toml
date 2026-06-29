@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-server-vyos"
-version = "0.3.0"
+version = "0.4.0"
 description = "MCP server for VyOS router management via the HTTPS REST API"
 readme = "README.md"
 license = "MIT"
