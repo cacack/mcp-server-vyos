@@ -114,7 +114,7 @@ This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_retu
 
 | Tool | Description |
 |---|---|
-| `vyos_docs_search` | Search VyOS documentation by topic |
+| `vyos_docs_search` | Search VyOS docs by topic and page content (returns snippets) |
 | `vyos_docs_read` | Read a specific documentation page |
 
 Documentation is fetched live from the [vyos-documentation](https://github.com/vyos/vyos-documentation) repository, so it stays in sync with the latest VyOS releases. Results are cached for 1 hour.

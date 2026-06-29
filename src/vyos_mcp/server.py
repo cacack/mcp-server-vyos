@@ -370,14 +370,17 @@ async def vyos_image_delete(name: str) -> dict:
 
 @mcp.tool()
 async def vyos_docs_search(query: str, max_results: int = 10) -> list[dict]:
-    """Search VyOS documentation for a topic.
+    """Search VyOS documentation by topic (path and page content).
 
-    Returns matching doc pages ranked by relevance. Use
-    vyos_docs_read to fetch the full content of a result.
+    Ranks matching doc pages by how many query terms appear in the path
+    and body. Each result is a dict with 'path', 'title', and 'snippet'
+    (a context excerpt when the query matches the page body, else None).
+    Use vyos_docs_read to fetch the full content of a result.
 
     Args:
         query: Search terms, e.g. "firewall group" or "nat hairpin"
-        max_results: Maximum number of results to return (default 10)
+        max_results: Maximum number of results to return (default 10).
+            Capped internally at ~30 (only fetched pages can rank).
     """
     return await _docs_client.search(query, max_results)
 
