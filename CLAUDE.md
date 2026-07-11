@@ -42,3 +42,7 @@ python -m vyos_mcp  # run server (stdio transport)
 
 - Use `.env` file with `VYOS_URL` and `VYOS_API_KEY` for local testing (gitignored)
 - Use `commit-confirm` with short timeouts during testing to avoid persisting bad config
+
+## Releasing
+
+- Merge PRs with `/cacack:merge`, not raw `gh pr merge --merge`. The repo uses merge commits + release-please; `gh pr merge` defaults the merge-commit body to the conventional PR title (`feat: …`), which release-please parses as a second commit and duplicates every CHANGELOG entry. The merge-commit body must be **de-conventionalized prose** (PR title with the `type(scope):` prefix stripped). See #43.
