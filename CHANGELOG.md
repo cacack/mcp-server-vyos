@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/cacack/mcp-server-vyos/compare/v0.4.0...v0.4.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **deps:** cap mcp below 2.0 ([a4096ca](https://github.com/cacack/mcp-server-vyos/commit/a4096cae292c504847acf9ebbd1aed193b208116))
+
+
+### Documentation
+
+* document merge convention to prevent changelog duplication ([7a5ced2](https://github.com/cacack/mcp-server-vyos/commit/7a5ced284df875844133022eb46de92f88e6d822)), closes [#43](https://github.com/cacack/mcp-server-vyos/issues/43)
+
 ## [0.4.0](https://github.com/cacack/mcp-server-vyos/compare/v0.3.0...v0.4.0) (2026-06-29)
 
 
