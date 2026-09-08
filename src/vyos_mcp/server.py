@@ -406,7 +406,7 @@ def _apply_read_only() -> None:
     """Remove mutating tools when read-only mode is enabled."""
     if _is_read_only():
         for name in _MUTATING_TOOLS:
-            mcp._tool_manager._tools.pop(name, None)
+            mcp.remove_tool(name)
 
 
 _apply_read_only()

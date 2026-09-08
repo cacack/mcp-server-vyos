@@ -57,24 +57,24 @@ READ_ONLY_TOOLS = [
 ]
 
 
-def test_all_tools_registered():
+async def test_all_tools_registered():
     """Verify all expected tools are registered with the MCP server."""
-    tool_names = list(mcp._tool_manager._tools.keys())
+    tool_names = {t.name for t in await mcp.list_tools()}
     for name in EXPECTED_TOOLS:
         assert name in tool_names, f"Tool {name} not registered"
 
 
-def test_no_unexpected_tools():
+async def test_no_unexpected_tools():
     """Verify no extra tools are registered that we don't expect."""
-    tool_names = set(mcp._tool_manager._tools.keys())
+    tool_names = {t.name for t in await mcp.list_tools()}
     expected = set(EXPECTED_TOOLS)
     unexpected = tool_names - expected
     assert not unexpected, f"Unexpected tools registered: {unexpected}"
 
 
-def test_tool_count():
+async def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(mcp._tool_manager._tools) == 27
+    assert len(await mcp.list_tools()) == 27
 
 
 class TestToolHandlers:
@@ -425,37 +425,37 @@ class TestReadOnlyMode:
         mod = importlib.import_module("vyos_mcp.server")
         return mod.mcp
 
-    def test_read_only_true(self, monkeypatch):
+    async def test_read_only_true(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        tool_names = set(mcp_ro._tool_manager._tools.keys())
+        tool_names = {t.name for t in await mcp_ro.list_tools()}
         assert tool_names == set(READ_ONLY_TOOLS)
 
-    def test_read_only_one(self, monkeypatch):
+    async def test_read_only_one(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "1")
         mcp_ro = self._reload_server()
-        tool_names = set(mcp_ro._tool_manager._tools.keys())
+        tool_names = {t.name for t in await mcp_ro.list_tools()}
         assert tool_names == set(READ_ONLY_TOOLS)
 
-    def test_read_only_true_uppercase(self, monkeypatch):
+    async def test_read_only_true_uppercase(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "TRUE")
         mcp_ro = self._reload_server()
-        tool_names = set(mcp_ro._tool_manager._tools.keys())
+        tool_names = {t.name for t in await mcp_ro.list_tools()}
         assert tool_names == set(READ_ONLY_TOOLS)
 
-    def test_read_only_false(self, monkeypatch):
+    async def test_read_only_false(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "false")
         mcp_ro = self._reload_server()
-        tool_names = set(mcp_ro._tool_manager._tools.keys())
+        tool_names = {t.name for t in await mcp_ro.list_tools()}
         assert tool_names == set(EXPECTED_TOOLS)
 
-    def test_read_only_unset(self, monkeypatch):
+    async def test_read_only_unset(self, monkeypatch):
         monkeypatch.delenv("VYOS_READ_ONLY", raising=False)
         mcp_ro = self._reload_server()
-        tool_names = set(mcp_ro._tool_manager._tools.keys())
+        tool_names = {t.name for t in await mcp_ro.list_tools()}
         assert tool_names == set(EXPECTED_TOOLS)
 
-    def test_read_only_tool_count(self, monkeypatch):
+    async def test_read_only_tool_count(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        assert len(mcp_ro._tool_manager._tools) == 15
+        assert len(await mcp_ro.list_tools()) == 15
