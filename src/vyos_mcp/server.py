@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from vyos_mcp.client import VyOSClient
 from vyos_mcp.docs import DocsClient
 
-mcp = FastMCP("mcp-server-vyos")
+mcp = MCPServer("mcp-server-vyos")
 
 _docs_client = DocsClient()
 
