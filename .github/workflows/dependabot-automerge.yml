@@ -2,43 +2,28 @@ name: Dependabot Auto-Merge
 
 on: pull_request_target
 
-# Restrict default GITHUB_TOKEN permissions (principle of least privilege).
-# The automerge job requires write access to merge and approve PRs.
-# NOTE: requires "Allow auto-merge" enabled in repo settings and branch
-# protection requiring the CI checks to pass before the merge fires.
+# The logic lives in cacack/workflows so a fix lands once for every repo that
+# calls it, instead of being copy-pasted and drifting (#62). Pinned by SHA, as
+# every other action in this repo is, so a change there is opt-in here.
+#
+# The two secrets are mapped by name rather than passed with `secrets:
+# inherit`, which would hand this workflow every secret the repo holds to
+# satisfy a contract that declares exactly two. They belong to the
+# mcp-server-vyos-steward App, whose Workflows: write is what lets auto-merge
+# be enabled on the Dependabot PRs that edit .github/workflows/* — a permission
+# GITHUB_TOKEN cannot be granted. An App token also makes the resulting merge
+# commit trigger CI, which a GITHUB_TOKEN push does not.
+#
+# A called workflow's job cannot request more than the caller grants here, so
+# this must cover what that job declares — pull-requests included, or the run
+# fails at startup before any step executes.
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   automerge:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        with:
-          egress-policy: audit
-
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          skip-commit-verification: true
-
-      - name: Auto-merge minor and patch updates
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --merge "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Approve PR
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: cacack/workflows/.github/workflows/dependabot-automerge.yml@3325a01c0abd49361d05b209d42bf3b4a2d0c230 # v2.0.1
+    secrets:
+      BOT_APP_ID: ${{ secrets.BOT_APP_ID }}
+      BOT_PRIVATE_KEY: ${{ secrets.BOT_PRIVATE_KEY }}
