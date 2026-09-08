@@ -16,11 +16,38 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@c3fc4de07084f75a2b61a5b933069bda6edf3d5c # v4
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
           release-type: python
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # release-please bumps the version in pyproject.toml but not uv.lock, and
+      # the lock records the root project's own version. That leaves the lock
+      # stale against its own project, so `uv sync --locked` fails on the
+      # release PR — and on main once it merges. Regenerate the lock on the
+      # release branch whenever a release PR is open. This push does not
+      # re-trigger this workflow (it fires only on push to main), but it does
+      # re-run CI on the PR.
+      - if: ${{ steps.release.outputs.pr }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - if: ${{ steps.release.outputs.pr }}
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - if: ${{ steps.release.outputs.pr }}
+        name: Sync uv.lock with the bumped version
+        run: |
+          uv lock
+          if ! git diff --quiet uv.lock; then
+            git config user.name "release-please[bot]"
+            git config user.email "release-please[bot]@users.noreply.github.com"
+            git commit -am "chore: sync uv.lock with release version"
+            git push
+          fi
 
   publish-pypi:
     name: Publish to PyPI
