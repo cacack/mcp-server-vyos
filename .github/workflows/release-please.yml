@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+  # Lets this workflow be exercised from a branch before merging a change to
+  # it. release-please still targets the repository default branch, so a
+  # dispatch behaves the same as a push to main.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,11 +37,14 @@ jobs:
       # release PR's content unchanged — the action logs "PR #N remained the
       # same" and sets no output — while still rebuilding the release branch on
       # top of the new main. The lock needs syncing in that case too.
+      #
+      # `--repo` is required: this step runs before any checkout, so there is no
+      # git remote for gh to infer the repository from.
       - id: release_pr
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          branch=$(gh pr list --state open --json headRefName \
+          branch=$(gh pr list --repo "${{ github.repository }}" --state open --limit 100 --json headRefName \
             --jq '[.[] | select(.headRefName | startswith("release-please--"))][0].headRefName // ""')
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           if [ -n "$branch" ]; then
@@ -63,12 +70,14 @@ jobs:
         name: Sync uv.lock with the bumped version
         run: |
           uv lock
-          if ! git diff --quiet uv.lock; then
-            git config user.name "release-please[bot]"
-            git config user.email "release-please[bot]@users.noreply.github.com"
-            git commit -am "chore: sync uv.lock with release version"
-            git push
+          if git diff --quiet uv.lock; then
+            echo "uv.lock already in sync; nothing to push."
+            exit 0
           fi
+          git config user.name "release-please[bot]"
+          git config user.email "release-please[bot]@users.noreply.github.com"
+          git commit -m "chore: sync uv.lock with release version" -- uv.lock
+          git push
 
   publish-pypi:
     name: Publish to PyPI
