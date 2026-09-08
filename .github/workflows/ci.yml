@@ -97,7 +97,15 @@ jobs:
       uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       with:
         fail-on-severity: high
-        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, CC0-1.0, Unlicense, PSF-2.0
+        # MIT-0 (MIT No Attribution) is strictly more permissive than MIT, which
+        # is already allowed. Reached via cffi.
+        allow-licenses: MIT, MIT-0, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, CC0-1.0, Unlicense, PSF-2.0
+        # typing-extensions declares `License-Expression: PSF-2.0`, which is
+        # already allowed above. GitHub instead reports the bundled PSF license
+        # *text*, whose historical CNRI/BeOpen preamble resolves to
+        # "... AND GPL-1.0-or-later AND ...". Exempt the package rather than
+        # admitting GPL into the allowlist to work around bad metadata.
+        allow-dependencies-licenses: pkg:pypi/typing-extensions
 
   security:
     name: Security Scan
