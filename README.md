@@ -130,11 +130,14 @@ Documentation is fetched live from the [vyos-documentation](https://github.com/v
 ## Development
 
 ```bash
-uv venv && source .venv/bin/activate
-uv pip install -e ".[dev]"
-pytest
-ruff check .
+uv sync --extra dev
+uv run pytest
+uv run ruff check .
 ```
+
+Dependencies are pinned in the committed `uv.lock`. Add `--locked` to `uv sync` to
+fail rather than re-resolve when the lock is out of date with `pyproject.toml`, which
+is how CI installs.
 
 ## License
 

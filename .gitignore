@@ -14,4 +14,3 @@ venv/
 .coverage
 coverage.xml
 .ruff_cache/
-*.lock

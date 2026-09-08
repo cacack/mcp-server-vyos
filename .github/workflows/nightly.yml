@@ -30,18 +30,20 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+    - name: Set up uv and Python
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         python-version: '3.13'
+        enable-cache: true
 
     # pip-audit: authoritative CVE audit of resolved dependencies against the
     # PyPI advisory database. Fails the job on any known vulnerability so the
-    # notify step opens a tracking issue.
+    # notify step opens a tracking issue. Installs from the committed lock so
+    # the audit covers exactly the pinned set CI and releases use.
     - name: Run pip-audit
       run: |
-        pip install -e . pip-audit
-        pip-audit --desc
+        uv sync --locked
+        uv run --with pip-audit pip-audit --desc
 
     - name: Trivy filesystem scan
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
