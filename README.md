@@ -10,9 +10,20 @@ MCP server for VyOS router management via the HTTPS REST API. Provides both rout
 
 ## Installation
 
+Install with [uv](https://docs.astral.sh/uv/):
+
 ```bash
-pip install mcp-server-vyos
+uv tool install mcp-server-vyos
 ```
+
+Upgrade to the latest release:
+
+```bash
+uv tool upgrade mcp-server-vyos
+```
+
+Alternatively, skip the install and let `uvx` fetch the server on demand -- see
+[Claude Code](#claude-code) below.
 
 ## Configuration
 
@@ -50,6 +61,14 @@ Add to your MCP client configuration:
     }
   }
 }
+```
+
+Without installing first, run it through `uvx` instead -- replace the `command`
+line above with:
+
+```json
+      "command": "uvx",
+      "args": ["mcp-server-vyos"],
 ```
 
 ### Read-Only Mode
