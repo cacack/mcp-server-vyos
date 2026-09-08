@@ -25,20 +25,41 @@ jobs:
       # release-please bumps the version in pyproject.toml but not uv.lock, and
       # the lock records the root project's own version. That leaves the lock
       # stale against its own project, so `uv sync --locked` fails on the
-      # release PR — and on main once it merges. Regenerate the lock on the
-      # release branch whenever a release PR is open. This push does not
-      # re-trigger this workflow (it fires only on push to main), but it does
-      # re-run CI on the PR.
-      - if: ${{ steps.release.outputs.pr }}
+      # release PR — and on main once it merges.
+      #
+      # Find the open release PR directly rather than using the action's `pr`
+      # output: that output is set only when release-please *creates or updates*
+      # a PR. A commit of a hidden changelog type (ci, chore, docs) leaves the
+      # release PR's content unchanged — the action logs "PR #N remained the
+      # same" and sets no output — while still rebuilding the release branch on
+      # top of the new main. The lock needs syncing in that case too.
+      - id: release_pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          branch=$(gh pr list --state open --json headRefName \
+            --jq '[.[] | select(.headRefName | startswith("release-please--"))][0].headRefName // ""')
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          if [ -n "$branch" ]; then
+            echo "Open release PR on branch: $branch"
+          else
+            echo "No open release PR; nothing to sync."
+          fi
+
+      - if: ${{ steps.release_pr.outputs.branch }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          ref: ${{ steps.release_pr.outputs.branch }}
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
-      - if: ${{ steps.release.outputs.pr }}
+      - if: ${{ steps.release_pr.outputs.branch }}
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
-      - if: ${{ steps.release.outputs.pr }}
+      # Idempotent: when the lock is already in sync `git diff --quiet` succeeds
+      # and nothing is pushed, so this is safe to run on every push to main.
+      # release-please force-pushes the release branch on each run, dropping any
+      # previous sync commit — this step re-creates it, so the branch self-heals.
+      - if: ${{ steps.release_pr.outputs.branch }}
         name: Sync uv.lock with the bumped version
         run: |
           uv lock
