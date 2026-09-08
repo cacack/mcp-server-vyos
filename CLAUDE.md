@@ -19,7 +19,7 @@ dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 
 ## Architecture
 
-- `src/vyos_mcp/server.py` — MCP server, tool registration (FastMCP)
+- `src/vyos_mcp/server.py` — MCP server, tool registration (MCPServer)
 - `src/vyos_mcp/client.py` — VyOS REST API client (auth, TLS, form-encoded)
 - `src/vyos_mcp/docs.py` — VyOS docs client (GitHub API, TTL cache)
 

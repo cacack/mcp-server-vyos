@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from vyos_mcp.client import VyOSClient
 from vyos_mcp.docs import DocsClient
 
-mcp = FastMCP("mcp-server-vyos")
+mcp = MCPServer("mcp-server-vyos")
 
 _docs_client = DocsClient()
 
@@ -406,7 +406,7 @@ def _apply_read_only() -> None:
     """Remove mutating tools when read-only mode is enabled."""
     if _is_read_only():
         for name in _MUTATING_TOOLS:
-            mcp._tool_manager._tools.pop(name, None)
+            mcp.remove_tool(name)
 
 
 _apply_read_only()
