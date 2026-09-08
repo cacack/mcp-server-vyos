@@ -36,16 +36,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Set up Python ${{ matrix.python }}
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+    - name: Set up uv and Python ${{ matrix.python }}
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         python-version: ${{ matrix.python }}
+        enable-cache: true
 
-    - name: Install dependencies
-      run: pip install -e ".[dev]"
+    - name: Install dependencies (locked)
+      run: uv sync --locked --extra dev
 
     - name: Run tests with coverage
-      run: pytest -v --cov=vyos_mcp --cov-report=xml
+      run: uv run pytest -v --cov=vyos_mcp --cov-report=xml
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
@@ -67,19 +68,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Set up Python
-      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+    - name: Set up uv and Python
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         python-version: '3.13'
+        enable-cache: true
 
-    - name: Install dependencies
-      run: pip install -e ".[dev]"
+    - name: Install dependencies (locked)
+      run: uv sync --locked --extra dev
 
     - name: Ruff check
-      run: ruff check .
+      run: uv run ruff check .
 
     - name: Ruff format check
-      run: ruff format --check .
+      run: uv run ruff format --check .
 
   # Dependency review - blocks PRs introducing vulnerable dependencies
   dependency-review:
@@ -95,7 +97,15 @@ jobs:
       uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       with:
         fail-on-severity: high
-        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, CC0-1.0, Unlicense, PSF-2.0
+        # MIT-0 (MIT No Attribution) is strictly more permissive than MIT, which
+        # is already allowed. Reached via cffi.
+        allow-licenses: MIT, MIT-0, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, CC0-1.0, Unlicense, PSF-2.0
+        # typing-extensions declares `License-Expression: PSF-2.0`, which is
+        # already allowed above. GitHub instead reports the bundled PSF license
+        # *text*, whose historical CNRI/BeOpen preamble resolves to
+        # "... AND GPL-1.0-or-later AND ...". Exempt the package rather than
+        # admitting GPL into the allowlist to work around bad metadata.
+        allow-dependencies-licenses: pkg:pypi/typing-extensions
 
   security:
     name: Security Scan

@@ -7,12 +7,15 @@ Python MCP server wrapping the VyOS HTTPS REST API. Exposes VyOS router manageme
 ## Commands
 
 ```bash
-uv venv && source .venv/bin/activate
-uv pip install -e ".[dev]"
-pytest
-ruff check .
-python -m vyos_mcp  # run server (stdio transport)
+uv sync --extra dev     # add --locked to match CI (fails on a stale uv.lock)
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run python -m vyos_mcp  # run server (stdio transport)
 ```
+
+`uv.lock` is committed; CI installs with `uv sync --locked`. After changing
+dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 
 ## Architecture
 
