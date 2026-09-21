@@ -60,7 +60,7 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       - if: ${{ steps.release_pr.outputs.branch }}
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
 
       # Idempotent: when the lock is already in sync `git diff --quiet` succeeds
       # and nothing is pushed, so this is safe to run on every push to main.
@@ -97,7 +97,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv and Python
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           python-version: '3.13'
           enable-cache: true
