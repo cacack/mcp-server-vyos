@@ -3,9 +3,17 @@
 import json
 from unittest.mock import AsyncMock, call, patch
 
+import httpx
 import pytest
 
 from vyos_mcp.client import VyOSClient, _parse_commit_history
+
+# Minimal response configure_confirm accepts as an armed commit-confirm.
+ARMED = {
+    "success": True,
+    "data": "Initialized commit-confirm; 5 minutes to confirm before reload",
+    "error": None,
+}
 
 URL = "https://vyos.example.com"
 KEY = "test-key"
@@ -88,32 +96,103 @@ class TestPayloads:
         client._post.assert_called_once_with("configure", cmds)
 
     async def test_validate(self, client):
+        client._post.return_value = ARMED
         cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
         await client.validate(cmds)
         client._post.assert_called_once_with(
-            "configure",
-            [{"op": "set", "path": ["interfaces", "dummy", "dum0"], "confirm_time": 1}],
+            "configure", {"commands": cmds, "confirm_time": 1}
         )
 
     async def test_configure_confirm_single(self, client):
+        client._post.return_value = ARMED
         cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
         await client.configure_confirm(cmds, confirm_minutes=3)
         client._post.assert_called_once_with(
-            "configure",
-            [{"op": "set", "path": ["interfaces", "dummy", "dum0"], "confirm_time": 3}],
+            "configure", {"commands": cmds, "confirm_time": 3}
         )
 
     async def test_configure_confirm_batch(self, client):
+        client._post.return_value = ARMED
         cmds = [
             {"op": "set", "path": ["interfaces", "dummy", "dum0"]},
             {"op": "set", "path": ["interfaces", "dummy", "dum1"]},
         ]
         await client.configure_confirm(cmds, confirm_minutes=5)
-        expected = [
-            {"op": "set", "path": ["interfaces", "dummy", "dum0"], "confirm_time": 5},
-            {"op": "set", "path": ["interfaces", "dummy", "dum1"]},
-        ]
-        client._post.assert_called_once_with("configure", expected)
+        # confirm_time is top-level; the router ignores it on commands
+        client._post.assert_called_once_with(
+            "configure", {"commands": cmds, "confirm_time": 5}
+        )
+
+    async def test_configure_confirm_armed_returns_result(self, client):
+        client._post.return_value = ARMED
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        assert await client.configure_confirm(cmds) == ARMED
+
+    @pytest.mark.parametrize("data", ["", None, "Configuration committed"])
+    async def test_configure_confirm_not_armed_raises(self, client, data):
+        client._post.return_value = {"success": True, "data": data, "error": None}
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        with pytest.raises(RuntimeError, match="PERMANENTLY"):
+            await client.configure_confirm(cmds)
+
+    async def test_configure_confirm_mention_is_not_armed(self, client):
+        client._post.return_value = {
+            "success": True,
+            "data": "commit-confirm not supported, committing normally",
+            "error": None,
+        }
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        with pytest.raises(RuntimeError, match="PERMANENTLY"):
+            await client.configure_confirm(cmds)
+
+    async def test_configure_confirm_background_commit_warns(self, client):
+        result = {
+            "success": True,
+            "data": "Requested HTTP API server configuration change; "
+            "commit will be called in the background",
+            "error": None,
+        }
+        client._post.return_value = result
+        cmds = [{"op": "set", "path": ["service", "https", "port", "8443"]}]
+        out = await client.configure_confirm(cmds)
+        assert out["data"] == result["data"]
+        assert "could NOT be verified" in out["warning"]
+
+    async def test_configure_confirm_pending_raises(self, client):
+        request = httpx.Request("POST", f"{URL}/configure")
+        response = httpx.Response(
+            400,
+            json={"success": False, "error": "Another confirm is pending\n"},
+            request=request,
+        )
+        client._post.side_effect = httpx.HTTPStatusError(
+            "400", request=request, response=response
+        )
+        cmds = [{"op": "set", "path": ["interfaces", "dummy", "dum0"]}]
+        with pytest.raises(RuntimeError, match="COMMITTED"):
+            await client.configure_confirm(cmds)
+
+    async def test_configure_confirm_other_http_error_propagates(self, client):
+        request = httpx.Request("POST", f"{URL}/configure")
+        response = httpx.Response(
+            400, json={"success": False, "error": "invalid path"}, request=request
+        )
+        client._post.side_effect = httpx.HTTPStatusError(
+            "400", request=request, response=response
+        )
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.configure_confirm([{"op": "set", "path": ["bogus"]}])
+
+    async def test_configure_confirm_empty_raises(self, client):
+        with pytest.raises(ValueError, match="non-empty"):
+            await client.configure_confirm([])
+        client._post.assert_not_called()
+
+    async def test_configure_confirm_error_passes_through(self, client):
+        result = {"success": False, "data": None, "error": "invalid path"}
+        client._post.return_value = result
+        cmds = [{"op": "set", "path": ["bogus"]}]
+        assert await client.configure_confirm(cmds) == result
 
     async def test_confirm(self, client):
         await client.confirm()

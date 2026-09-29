@@ -142,6 +142,7 @@ Documentation is fetched live from the [vyos-documentation](https://github.com/v
 
 - Configuration changes use `commit-confirm` by default -- changes auto-revert after 5 minutes unless confirmed with `vyos_confirm`
 - `vyos_configure` accepts a list of operations applied atomically in one commit-confirm -- batch related changes into a single call so they commit or roll back together
+- If the router commits without arming a rollback (a VyOS version without API commit-confirm, or another commit-confirm still pending), the tool raises an error saying the changes were committed -- confirm or let a pending window expire before the next change
 - Destructive operations (`vyos_reboot`, `vyos_poweroff`, `vyos_image_delete`) include warning descriptions
 - API keys are never logged or included in tool outputs
 - Self-signed TLS certificates are accepted by default (common on VyOS)
