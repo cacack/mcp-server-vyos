@@ -216,8 +216,9 @@ async def vyos_validate(commands: list[dict]) -> dict:
     confirm, so the router automatically rolls back. This is not a true
     dry-run — the configuration is temporarily applied for up to 1 minute.
 
-    A successful response means the syntax is valid. An error means the
-    commands contain invalid syntax or paths.
+    A successful response means the syntax is valid. An HTTP error means the
+    commands contain invalid syntax or paths — unless it says the changes were
+    COMMITTED, in which case they persist and must be reviewed.
 
     Args:
         commands: List of config operations, each with 'op'
@@ -240,7 +241,11 @@ async def vyos_configure(commands: list[dict]) -> dict:
     keeps related changes atomic.
 
     This is the safe default — changes auto-revert after 5 minutes unless
-    confirmed with vyos_confirm.
+    confirmed with vyos_confirm. Confirm or let a pending window expire
+    before calling again: a call while one is pending commits WITHOUT its
+    own rollback and raises. An error saying changes were COMMITTED means
+    they are live; do not retry blindly. A `warning` key in the result
+    means auto-rollback could not be verified (`service https` changes).
 
     Args:
         commands: List of config operations, each with 'op'

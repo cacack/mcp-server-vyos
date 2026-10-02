@@ -36,7 +36,8 @@ dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 - All POST endpoints use `application/x-www-form-urlencoded` with `data` and `key` fields
 - Configure operations are slow (10-20s) — client uses 30s timeout
 - `confirm` requires `{"op": "confirm", "path": []}` — path field is mandatory, even empty
-- `commit-confirm` uses `confirm_time` as a field on the command dict, not a separate operation
+- `commit-confirm` uses `confirm_time` as a top-level field alongside `commands`, not per-command (per-command is silently ignored → permanent commit). An armed response `data` contains "Initialized commit-confirm; N minutes to confirm before reload"
+- A commit-confirm while one is pending still commits, then returns HTTP 400 "Another confirm is pending"; the pending timer reverts both on expiry
 - `reboot`/`poweroff` require `"path": ["now"]`
 - `/retrieve` supports three ops: `showConfig`, `returnValues`, `exists`
 - `ping`/`traceroute` are NOT `show` subcommands — `/show` rejects them. `/traceroute` is a dedicated endpoint taking `{"op": "traceroute", "host": ...}` and returns an mtr report in `data`. There is no `/ping` endpoint (absent from the API's OpenAPI schema)
