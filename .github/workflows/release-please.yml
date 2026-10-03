@@ -22,8 +22,10 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
+        # No `release-type` input: setting it makes the action ignore
+        # release-please-config.json (and its extra-files), so __version__
+        # never gets bumped. The release type lives in the config file.
         with:
-          release-type: python
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       # release-please bumps the version in pyproject.toml but not uv.lock, and
