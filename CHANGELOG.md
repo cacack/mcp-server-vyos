@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/cacack/mcp-server-vyos/compare/v0.4.1...v0.5.0) (2026-10-03)
+
+
+### Features
+
+* migrate to mcp 2.x and lift the &lt;2 cap ([dc7ae39](https://github.com/cacack/mcp-server-vyos/commit/dc7ae396b73412fe038a9be6b485b518711e7a51)), closes [#70](https://github.com/cacack/mcp-server-vyos/issues/70)
+
+
+### Bug Fixes
+
+* arm commit-confirm by sending confirm_time top-level ([15a1d8a](https://github.com/cacack/mcp-server-vyos/commit/15a1d8a10d81bf3c9155c936dbf98dd3718d8da0)), closes [#46](https://github.com/cacack/mcp-server-vyos/issues/46)
+* keep __version__ in sync with releases ([5a4584c](https://github.com/cacack/mcp-server-vyos/commit/5a4584c8a333218b9436f41a3754fefba5e6649f)), closes [#81](https://github.com/cacack/mcp-server-vyos/issues/81)
+
+
+### Documentation
+
+* use uv for installation and updating ([645889d](https://github.com/cacack/mcp-server-vyos/commit/645889d52e535e58644e42d963720bc951fa8c4d))
+
 ## [0.4.1](https://github.com/cacack/mcp-server-vyos/compare/v0.4.0...v0.4.1) (2026-09-08)
 
 
