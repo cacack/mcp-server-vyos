@@ -459,3 +459,52 @@ class TestReadOnlyMode:
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
         assert len(await mcp_ro.list_tools()) == 15
+
+
+class TestToolErrors:
+    """Client errors must reach the model with their text.
+
+    MCPServer replaces any exception that isn't a ToolError with a generic
+    "Error executing tool <name>"; the model sees str() of what call_tool raises.
+    """
+
+    @pytest.fixture
+    def server(self, monkeypatch):
+        # A fresh module: TestReadOnlyMode reloads it, leaving a stale `mcp`.
+        monkeypatch.delenv("VYOS_READ_ONLY", raising=False)
+        sys.modules.pop("vyos_mcp.server", None)
+        return importlib.import_module("vyos_mcp.server")
+
+    async def _call_configure(self, server, error):
+        client = AsyncMock()
+        client.configure_confirm.side_effect = error
+        with patch.object(server, "_get_client", return_value=client):
+            await server.mcp.call_tool("vyos_configure", {"commands": [{"op": "set"}]})
+
+    @pytest.mark.parametrize(
+        ("error", "text"),
+        [
+            (RuntimeError("Changes were committed PERMANENTLY"), "PERMANENTLY"),
+            (TimeoutError("VyOS API /configure did not respond within 30s"), "30s"),
+            (ValueError("commands must be a non-empty list"), "non-empty"),
+        ],
+    )
+    async def test_client_error_text_reaches_model(self, server, error, text):
+        from mcp.server.mcpserver.exceptions import ToolError, UnexpectedToolError
+
+        with pytest.raises(ToolError) as exc_info:
+            await self._call_configure(server, error)
+        assert not isinstance(exc_info.value, UnexpectedToolError)
+        assert text in str(exc_info.value)
+
+    async def test_unexpected_error_stays_generic(self, server):
+        from mcp.server.mcpserver.exceptions import UnexpectedToolError
+
+        with pytest.raises(UnexpectedToolError) as exc_info:
+            await self._call_configure(server, KeyError("internal detail"))
+        assert "internal detail" not in str(exc_info.value)
+
+    async def test_tool_schema_unchanged_by_wrapper(self, server):
+        tools = {t.name: t for t in await server.mcp.list_tools()}
+        assert tools["vyos_configure"].input_schema["required"] == ["commands"]
+        assert "commit-confirm" in tools["vyos_configure"].description
