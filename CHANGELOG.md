@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/cacack/mcp-server-vyos/compare/v0.5.0...v0.5.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* wait for image_add to finish and surface client errors to the model ([cd7164d](https://github.com/cacack/mcp-server-vyos/commit/cd7164dc61264e24503d82862fb9a03495d70b0e)), closes [#41](https://github.com/cacack/mcp-server-vyos/issues/41)
+
 ## [0.5.0](https://github.com/cacack/mcp-server-vyos/compare/v0.4.1...v0.5.0) (2026-10-03)
 
 
