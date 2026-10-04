@@ -1,8 +1,22 @@
 {
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "refactor", "section": "Refactoring", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous", "hidden": true }
+  ],
   "packages": {
     ".": {
       "release-type": "python",
-      "include-component-in-tag": false,
+      "package-name": "mcp-server-vyos",
+      "changelog-path": "CHANGELOG.md",
       "extra-files": [
         "src/vyos_mcp/__init__.py"
       ]

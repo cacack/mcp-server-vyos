@@ -1,0 +1,39 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    # Trusted publishing: PyPI issues a short-lived token in exchange for a
+    # GitHub-signed OIDC assertion, so no API token is stored in the repo. The
+    # trust relationship is configured once on PyPI (pin this repo + workflow).
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
