@@ -423,9 +423,28 @@ class TestPayloads:
 
     async def test_image_add(self, client):
         await client.image_add("https://downloads.vyos.io/latest.iso")
+        # The router replies only after download + install: long read timeout
         client._post.assert_called_once_with(
-            "image", {"op": "add", "url": "https://downloads.vyos.io/latest.iso"}
+            "image",
+            {"op": "add", "url": "https://downloads.vyos.io/latest.iso"},
+            timeout=httpx.Timeout(30, read=1800),
         )
+
+    async def test_image_add_read_timeout_hints_to_check_images(self, client):
+        err = TimeoutError("VyOS API /image did not respond within 1800s")
+        err.__cause__ = httpx.ReadTimeout("")
+        client._post.side_effect = err
+        with pytest.raises(TimeoutError, match="1800s.*system.*image"):
+            await client.image_add("https://downloads.vyos.io/latest.iso")
+
+    async def test_image_add_connect_timeout_has_no_install_hint(self, client):
+        # The router never got the request, so nothing can be installing
+        err = TimeoutError("VyOS API /image could not connect within 30s")
+        err.__cause__ = httpx.ConnectTimeout("")
+        client._post.side_effect = err
+        with pytest.raises(TimeoutError) as exc_info:
+            await client.image_add("https://downloads.vyos.io/latest.iso")
+        assert exc_info.value is err
 
     async def test_image_delete(self, client):
         await client.image_delete("1.4-rolling-202102280559")
@@ -476,6 +495,62 @@ class TestPostEncoding:
             await client._post("show", {"op": "show", "path": []})
 
             mock_cls.assert_called_once_with(verify=True, timeout=30)
+
+    async def test_custom_timeout_passed_through(self):
+        client = make_client()
+        mock_response = AsyncMock()
+        mock_response.json.return_value = {"success": True}
+        mock_response.raise_for_status = lambda: None
+        timeout = httpx.Timeout(30, read=1800)
+
+        with patch("vyos_mcp.client.httpx.AsyncClient") as mock_cls:
+            mock_http = AsyncMock()
+            mock_http.post.return_value = mock_response
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__.return_value = mock_http
+            mock_cls.return_value = mock_ctx
+
+            await client._post("image", {"op": "add"}, timeout=timeout)
+
+            mock_cls.assert_called_once_with(verify=False, timeout=timeout)
+
+    @pytest.mark.parametrize(
+        ("timeout", "exc", "message"),
+        [
+            (30, httpx.ReadTimeout, "/image did not respond within 30s"),
+            (
+                httpx.Timeout(30, read=1800),
+                httpx.ReadTimeout,
+                "/image did not respond within 1800s",
+            ),
+            # A connect timeout reports the connect limit, not the read limit
+            (
+                httpx.Timeout(30, read=1800),
+                httpx.ConnectTimeout,
+                "/image could not connect within 30s",
+            ),
+            # An unlimited phase omits the duration instead of crashing
+            (
+                httpx.Timeout(30, read=None),
+                httpx.ReadTimeout,
+                "/image did not respond$",
+            ),
+        ],
+    )
+    async def test_timeout_raises_descriptive_error(self, timeout, exc, message):
+        client = make_client()
+
+        with patch("vyos_mcp.client.httpx.AsyncClient") as mock_cls:
+            mock_http = AsyncMock()
+            # httpx timeout exceptions carry an empty message
+            mock_http.post.side_effect = exc("")
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__.return_value = mock_http
+            mock_cls.return_value = mock_ctx
+
+            with pytest.raises(TimeoutError, match=message) as exc_info:
+                await client._post("image", {"op": "add"}, timeout=timeout)
+            assert isinstance(exc_info.value.__cause__, exc)
 
     async def test_info_uses_get(self):
         from unittest.mock import MagicMock

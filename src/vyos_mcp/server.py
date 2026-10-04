@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import functools
 import os
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from vyos_mcp.client import VyOSClient
 from vyos_mcp.docs import DocsClient
@@ -29,18 +31,40 @@ _MUTATING_TOOLS = {
 }
 
 
+# Errors the client raises deliberately, with messages meant for the caller.
+# MCPServer shows the model only a generic "Error executing tool <name>" for
+# anything that isn't a ToolError, so these are converted to keep their text.
+_CLIENT_ERRORS = (TimeoutError, RuntimeError, ValueError)
+
+
+def _tool():
+    """Register a tool whose anticipated client errors reach the model."""
+
+    def decorator(fn):
+        @functools.wraps(fn)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await fn(*args, **kwargs)
+            except _CLIENT_ERRORS as e:
+                raise ToolError(str(e)) from e
+
+        return mcp.tool()(wrapper)
+
+    return decorator
+
+
 def _get_client() -> VyOSClient:
     return VyOSClient()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_info() -> dict:
     """Get VyOS system info (no authentication required)."""
     client = _get_client()
     return await client.info()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_retrieve(path: list[str]) -> dict:
     """Read VyOS configuration at a given path.
 
@@ -51,7 +75,7 @@ async def vyos_retrieve(path: list[str]) -> dict:
     return await client.retrieve(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_return_values(path: list[str]) -> dict:
     """Get values of a multi-valued VyOS config node as a list.
 
@@ -66,7 +90,7 @@ async def vyos_return_values(path: list[str]) -> dict:
     return await client.return_values(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_exists(path: list[str]) -> dict:
     """Check if a VyOS configuration path exists.
 
@@ -80,7 +104,7 @@ async def vyos_exists(path: list[str]) -> dict:
     return await client.exists(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_config_diff(rev: int | None = None) -> dict:
     """Show configuration differences.
 
@@ -95,7 +119,7 @@ async def vyos_config_diff(rev: int | None = None) -> dict:
     return await client.config_diff(rev)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_config_history() -> list[dict]:
     """List configuration revision history.
 
@@ -111,7 +135,7 @@ async def vyos_config_history() -> list[dict]:
     return await client.config_history()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_show(path: list[str]) -> dict:
     """Run a VyOS operational show command.
 
@@ -122,7 +146,7 @@ async def vyos_show(path: list[str]) -> dict:
     return await client.show(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_traceroute(host: str) -> dict:
     """Traceroute to a host from the router.
 
@@ -138,7 +162,7 @@ async def vyos_traceroute(host: str) -> dict:
     return await client.traceroute(host)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_interface_stats(interface: list[str] | None = None) -> dict:
     """Show interface statistics: RX/TX counters, errors, link state.
 
@@ -153,7 +177,7 @@ async def vyos_interface_stats(interface: list[str] | None = None) -> dict:
     return await client.interface_stats(interface)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_system_resources() -> dict:
     """Get router system resources: CPU, memory, storage, and uptime.
 
@@ -165,7 +189,7 @@ async def vyos_system_resources() -> dict:
     return await client.system_resources()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_route_table(family: str = "ip", protocol: str | None = None) -> dict:
     """Show the routing table / RIB (`show ip route` / `show ipv6 route`).
 
@@ -181,7 +205,7 @@ async def vyos_route_table(family: str = "ip", protocol: str | None = None) -> d
     return await client.route_table(family, protocol)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_firewall_stats() -> dict:
     """Show firewall and NAT rule hit counters.
 
@@ -196,7 +220,7 @@ async def vyos_firewall_stats() -> dict:
     return await client.firewall_stats()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_bgp_summary() -> dict:
     """Show the BGP neighbor summary (`show bgp summary`).
 
@@ -208,7 +232,7 @@ async def vyos_bgp_summary() -> dict:
     return await client.bgp_summary()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_validate(commands: list[dict]) -> dict:
     """Validate VyOS configuration syntax without persisting changes.
 
@@ -230,7 +254,7 @@ async def vyos_validate(commands: list[dict]) -> dict:
     return await client.validate(commands)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_configure(commands: list[dict]) -> dict:
     """Apply a list of VyOS config changes atomically with commit-confirm.
 
@@ -260,21 +284,21 @@ async def vyos_configure(commands: list[dict]) -> dict:
     return await client.configure_confirm(commands)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_confirm() -> dict:
     """Confirm a pending commit-confirm, making changes permanent."""
     client = _get_client()
     return await client.confirm()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_save() -> dict:
     """Save running VyOS configuration to disk."""
     client = _get_client()
     return await client.save()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_generate(path: list[str]) -> dict:
     """Run a VyOS generate command (keys, certificates, etc.).
 
@@ -285,7 +309,7 @@ async def vyos_generate(path: list[str]) -> dict:
     return await client.generate(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_reset(path: list[str]) -> dict:
     """Run a VyOS reset command.
 
@@ -296,7 +320,7 @@ async def vyos_reset(path: list[str]) -> dict:
     return await client.reset(path)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_load(file: str) -> dict:
     """Load a VyOS configuration file.
 
@@ -308,7 +332,7 @@ async def vyos_load(file: str) -> dict:
     return await client.load(file)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_merge(file: str | None = None, string: str | None = None) -> dict:
     """Merge a configuration into the running config.
 
@@ -324,7 +348,7 @@ async def vyos_merge(file: str | None = None, string: str | None = None) -> dict
     return await client.merge(file=file, string=string)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_reboot() -> dict:
     """Reboot the VyOS router immediately.
 
@@ -335,7 +359,7 @@ async def vyos_reboot() -> dict:
     return await client.reboot()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_poweroff() -> dict:
     """Power off the VyOS router immediately.
 
@@ -346,12 +370,17 @@ async def vyos_poweroff() -> dict:
     return await client.poweroff()
 
 
-@mcp.tool()
+@_tool()
 async def vyos_image_add(url: str) -> dict:
     """Add a VyOS system image from a URL.
 
     Downloads and installs a new system image. This does not
     reboot — the new image will be used on next boot.
+
+    The call blocks until the router finishes downloading and installing,
+    which can take several minutes for a full ISO (it waits up to 30
+    minutes). On a timeout error the install may still be running: check
+    vyos_show(["system", "image"]) before retrying.
 
     Args:
         url: URL to the VyOS ISO image
@@ -360,7 +389,7 @@ async def vyos_image_add(url: str) -> dict:
     return await client.image_add(url)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_image_delete(name: str) -> dict:
     """Delete a VyOS system image.
 
@@ -373,7 +402,7 @@ async def vyos_image_delete(name: str) -> dict:
     return await client.image_delete(name)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_docs_search(query: str, max_results: int = 10) -> list[dict]:
     """Search VyOS documentation by topic (path and page content).
 
@@ -390,7 +419,7 @@ async def vyos_docs_search(query: str, max_results: int = 10) -> list[dict]:
     return await _docs_client.search(query, max_results)
 
 
-@mcp.tool()
+@_tool()
 async def vyos_docs_read(path: str) -> str:
     """Read a VyOS documentation page.
 

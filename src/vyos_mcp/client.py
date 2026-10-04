@@ -80,6 +80,33 @@ def _parse_commit_history(raw: str) -> list[dict]:
     return revisions
 
 
+_DEFAULT_TIMEOUT = 30
+# /image add is synchronous: the router downloads and installs a full ISO
+# before replying, which takes minutes. A deliberate generous upper bound.
+_IMAGE_ADD_READ_TIMEOUT = 1800
+
+# Which httpx.Timeout field governs each timeout phase.
+_TIMEOUT_PHASES = {
+    httpx.ConnectTimeout: ("connect", "could not connect"),
+    httpx.ReadTimeout: ("read", "did not respond"),
+    httpx.WriteTimeout: ("write", "could not send the request"),
+    httpx.PoolTimeout: ("pool", "had no free connection"),
+}
+
+
+def _timeout_message(
+    endpoint: str, timeout: float | httpx.Timeout, exc: httpx.TimeoutException
+) -> str:
+    """Describe which phase of a request to `endpoint` timed out, and after how long.
+
+    httpx's own timeout exceptions carry an empty message.
+    """
+    field, what = _TIMEOUT_PHASES.get(type(exc), ("read", "timed out"))
+    seconds = getattr(timeout, field) if isinstance(timeout, httpx.Timeout) else timeout
+    limit = f" within {seconds:g}s" if seconds is not None else ""
+    return f"VyOS API /{endpoint} {what}{limit}"
+
+
 # Router response markers (matched case-insensitively). An armed commit-confirm
 # reports "Initialized commit-confirm; N minutes to confirm before reload".
 _ARMED_MARKER = "initialized commit-confirm"
@@ -141,16 +168,28 @@ class VyOSClient:
         if not self.api_key:
             raise ValueError("API key required (pass api_key= or set VYOS_API_KEY)")
 
-    async def _post(self, endpoint: str, data: dict | list) -> dict:
-        """Send a form-encoded POST request to the VyOS API."""
-        async with httpx.AsyncClient(verify=self.verify_ssl, timeout=30) as client:
-            response = await client.post(
-                f"{self.url}/{endpoint}",
-                data={
-                    "data": json.dumps(data),
-                    "key": self.api_key,
-                },
-            )
+    async def _post(
+        self,
+        endpoint: str,
+        data: dict | list,
+        timeout: float | httpx.Timeout = _DEFAULT_TIMEOUT,
+    ) -> dict:
+        """Send a form-encoded POST request to the VyOS API.
+
+        Raises TimeoutError describing the endpoint and the timeout phase; its
+        __cause__ is the original httpx exception.
+        """
+        async with httpx.AsyncClient(verify=self.verify_ssl, timeout=timeout) as client:
+            try:
+                response = await client.post(
+                    f"{self.url}/{endpoint}",
+                    data={
+                        "data": json.dumps(data),
+                        "key": self.api_key,
+                    },
+                )
+            except httpx.TimeoutException as e:
+                raise TimeoutError(_timeout_message(endpoint, timeout, e)) from e
             response.raise_for_status()
             return response.json()
 
@@ -384,8 +423,27 @@ class VyOSClient:
         return await self._post("poweroff", {"op": "poweroff", "path": ["now"]})
 
     async def image_add(self, url: str) -> dict:
-        """Add a system image from a URL."""
-        return await self._post("image", {"op": "add", "url": url})
+        """Add a system image from a URL.
+
+        The router downloads and installs the image before responding, so
+        this waits up to `_IMAGE_ADD_READ_TIMEOUT` for the reply.
+        """
+        try:
+            return await self._post(
+                "image",
+                {"op": "add", "url": url},
+                timeout=httpx.Timeout(_DEFAULT_TIMEOUT, read=_IMAGE_ADD_READ_TIMEOUT),
+            )
+        except TimeoutError as e:
+            # Only a read timeout means the router got the request and may
+            # still be working; connect/write timeouts never reached it.
+            if not isinstance(e.__cause__, httpx.ReadTimeout):
+                raise
+            raise TimeoutError(
+                f"{e}. The router may still be downloading or installing the "
+                'image: check vyos_show(["system", "image"]) before retrying, '
+                "since a retry starts a second download."
+            ) from e
 
     async def image_delete(self, name: str) -> dict:
         """Delete a system image."""
@@ -393,7 +451,9 @@ class VyOSClient:
 
     async def info(self) -> dict:
         """Get system info (no auth required)."""
-        async with httpx.AsyncClient(verify=self.verify_ssl, timeout=30) as client:
+        async with httpx.AsyncClient(
+            verify=self.verify_ssl, timeout=_DEFAULT_TIMEOUT
+        ) as client:
             response = await client.get(f"{self.url}/info")
             response.raise_for_status()
             return response.json()

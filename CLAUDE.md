@@ -30,6 +30,7 @@ dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 - Self-signed TLS certs common on VyOS — skip verification by default
 - API key via `VYOS_API_KEY`, router URL via `VYOS_URL` env vars
 - Docs fetched live from `vyos/vyos-documentation` GitHub repo (branch: `current`)
+- MCPServer shows the model only "Error executing tool <name>" for exceptions that aren't `ToolError`. Register tools with `@_tool()` (server.py), which converts `TimeoutError`/`RuntimeError`/`ValueError` to `ToolError` so their text reaches the model
 
 ## VyOS API Quirks (validated against real router)
 
