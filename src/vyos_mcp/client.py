@@ -10,16 +10,55 @@ import re
 
 import httpx
 
-# Hosts reach the router's traceroute utility as a command argument; restrict
-# to characters valid in hostnames and IP addresses (incl. IPv6 colons).
-_HOST_RE = re.compile(r"^[A-Za-z0-9._:-]+$")
+# Hosts reach the router's ping/traceroute utilities as a command argument;
+# restrict to characters valid in hostnames and IP addresses (incl. IPv6
+# colons). The first character can't be `-`, so a value can't pass as an option.
+_HOST_RE = re.compile(r"[A-Za-z0-9:][A-Za-z0-9._:-]*")
 
 
 def _validate_host(host: str) -> str:
     """Return host if it is a plausible hostname/IP, else raise ValueError."""
-    if not host or not _HOST_RE.match(host):
+    if not _HOST_RE.fullmatch(host):
         raise ValueError(f"Invalid host: {host!r}")
     return host
+
+
+# VRF names also reach ping/traceroute as a command argument.
+_VRF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def _validate_vrf(vrf: str) -> str:
+    """Return vrf if it is a plausible VRF name, else raise ValueError."""
+    if not _VRF_RE.fullmatch(vrf):
+        raise ValueError(f"Invalid VRF name: {vrf!r}")
+    return vrf
+
+
+# Router-side limits on /ping's `count` (vyos-1x PingModel).
+_PING_COUNT_MIN, _PING_COUNT_MAX = 1, 10
+
+
+def _validate_ping_count(count: int) -> int:
+    """Return count if it is an int within the router's limits, else raise."""
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or not _PING_COUNT_MIN <= count <= _PING_COUNT_MAX
+    ):
+        raise ValueError(
+            f"count must be between {_PING_COUNT_MIN} and {_PING_COUNT_MAX}, "
+            f"got {count!r}"
+        )
+    return count
+
+
+def _router_error(e: httpx.HTTPStatusError) -> str:
+    """Return the router's `error` text from an HTTP error, else the raw body."""
+    try:
+        error = e.response.json().get("error")
+    except (ValueError, AttributeError):
+        error = None
+    return str(error) if error else e.response.text.strip()
 
 
 _ROUTE_FAMILIES = frozenset({"ip", "ipv6"})
@@ -362,15 +401,54 @@ class VyOSClient:
         """Run an operational show command."""
         return await self._post("show", {"op": "show", "path": path})
 
-    async def traceroute(self, host: str) -> dict:
+    async def traceroute(self, host: str, vrf: str | None = None) -> dict:
         """Traceroute to a host from the router.
 
         Uses the dedicated /traceroute endpoint. The returned API response
         carries an mtr report (per-hop loss and latency) in its data field.
-        Raises ValueError if host is not a plausible hostname or IP address.
+        `vrf` needs vyos-1x T9223 (rolling 2026-08-24+); older routers
+        silently ignore it and trace from the default VRF. Raises ValueError
+        if host or vrf is malformed, and RuntimeError carrying the router's
+        error text if it rejects the request.
         """
         payload = {"op": "traceroute", "host": _validate_host(host)}
-        return await self._post("traceroute", payload)
+        if vrf is not None:
+            payload["vrf"] = _validate_vrf(vrf)
+        try:
+            return await self._post("traceroute", payload)
+        except httpx.HTTPStatusError as e:
+            raise RuntimeError(
+                f"Traceroute to {host} failed: {_router_error(e)}"
+            ) from e
+
+    async def ping(self, host: str, count: int = 5, vrf: str | None = None) -> dict:
+        """Ping a host from the router.
+
+        Uses the dedicated /ping endpoint (vyos-1x T9224, VyOS rolling
+        2026.08.18+); the ping output text is in the response's data field.
+        Raises ValueError if host or vrf is malformed or count is outside
+        1-10. Raises RuntimeError if the router predates the endpoint (404),
+        or carrying the router's error text otherwise: ping exits nonzero
+        when no reply arrives, which the router reports as HTTP 400 with
+        the ping output.
+        """
+        payload = {
+            "op": "ping",
+            "host": _validate_host(host),
+            "count": _validate_ping_count(count),
+        }
+        if vrf is not None:
+            payload["vrf"] = _validate_vrf(vrf)
+        try:
+            return await self._post("ping", payload)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise RuntimeError(
+                    "This router has no /ping endpoint; it requires VyOS "
+                    "rolling 2026.08.18 or later (vyos-1x T9224). Use "
+                    "vyos_traceroute to check reachability instead."
+                ) from e
+            raise RuntimeError(f"Ping to {host} failed: {_router_error(e)}") from e
 
     async def interface_stats(self, interface: list[str] | None = None) -> dict:
         """Show interface statistics (counters, errors, link state).

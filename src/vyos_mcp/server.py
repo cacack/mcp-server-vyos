@@ -150,7 +150,7 @@ async def vyos_show(path: list[str]) -> dict:
 
 
 @_tool()
-async def vyos_traceroute(host: str) -> dict:
+async def vyos_traceroute(host: str, vrf: str | None = None) -> dict:
     """Traceroute to a host from the router.
 
     Returns the API response with an mtr report (per-hop loss and
@@ -160,9 +160,30 @@ async def vyos_traceroute(host: str) -> dict:
 
     Args:
         host: Destination hostname or IP, e.g. "8.8.8.8"
+        vrf: Optional VRF to trace from. Needs VyOS rolling 2026-08-24 or
+            later; older routers silently ignore it and use the default VRF.
     """
     client = _get_client()
-    return await client.traceroute(host)
+    return await client.traceroute(host, vrf)
+
+
+@_tool()
+async def vyos_ping(host: str, count: int = 5, vrf: str | None = None) -> dict:
+    """Ping a host from the router.
+
+    Returns the API response with the ping output (per-reply RTTs and a
+    loss/latency summary) in its data field. If no reply arrives the
+    router reports failure, so the tool errors with the ping output.
+    Requires VyOS rolling 2026.08.18 or later; older routers lack the
+    /ping endpoint and this tool reports so.
+
+    Args:
+        host: Destination hostname or IP, e.g. "8.8.8.8"
+        count: Number of echo requests, 1-10 (default 5)
+        vrf: Optional VRF to ping from
+    """
+    client = _get_client()
+    return await client.ping(host, count, vrf)
 
 
 @_tool()

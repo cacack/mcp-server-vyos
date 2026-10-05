@@ -90,7 +90,7 @@ For safe, query-only access (monitoring, investigation, documentation lookup), e
 }
 ```
 
-This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_return_values`, `vyos_exists`, `vyos_config_diff`, `vyos_config_history`, `vyos_show`, `vyos_traceroute`, `vyos_interface_stats`, `vyos_system_resources`, `vyos_route_table`, `vyos_firewall_stats`, `vyos_bgp_summary`, `vyos_docs_search`, and `vyos_docs_read`.
+This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_return_values`, `vyos_exists`, `vyos_config_diff`, `vyos_config_history`, `vyos_show`, `vyos_traceroute`, `vyos_ping`, `vyos_interface_stats`, `vyos_system_resources`, `vyos_route_table`, `vyos_firewall_stats`, `vyos_bgp_summary`, `vyos_docs_search`, and `vyos_docs_read`.
 
 ## Tools
 
@@ -122,7 +122,8 @@ This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_retu
 
 | Tool | Description |
 |---|---|
-| `vyos_traceroute` | Traceroute to a host (structured mtr report) |
+| `vyos_traceroute` | Traceroute to a host (structured mtr report), optionally from a VRF |
+| `vyos_ping` | Ping a host, optionally from a VRF (count 1-10; needs VyOS rolling 2026.08.18+) |
 | `vyos_interface_stats` | Interface RX/TX counters, errors, and link state |
 | `vyos_system_resources` | CPU, memory, storage, and uptime snapshot |
 | `vyos_route_table` | Routing table (RIB) by family/protocol (`show ip route`) |
