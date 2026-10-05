@@ -106,14 +106,17 @@ async def vyos_exists(path: list[str]) -> dict:
 
 @_tool()
 async def vyos_config_diff(rev: int | None = None) -> dict:
-    """Show configuration differences.
+    """Show what a commit revision changed (not a running-config comparison).
 
-    Compares running config against saved config by default,
-    or against a specific revision number. Useful for previewing
-    changes before committing or reviewing what has drifted.
+    Returns a unified diff of revision rev+1 -> rev, i.e. what that
+    commit changed. Defaults to the most recent commit (rev 0). Revision
+    numbers are the `revision` values listed by vyos_config_history.
+
+    Note: the VyOS HTTP API cannot compare the running config against
+    the saved config, so this tool only diffs committed revisions.
 
     Args:
-        rev: Optional revision number to compare against
+        rev: Commit revision number (omit or 0 = most recent)
     """
     client = _get_client()
     return await client.config_diff(rev)

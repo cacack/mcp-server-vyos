@@ -102,7 +102,7 @@ This registers only non-mutating tools: `vyos_info`, `vyos_retrieve`, `vyos_retu
 | `vyos_retrieve` | Read configuration at a path |
 | `vyos_return_values` | Get multi-valued config node values |
 | `vyos_exists` | Check if a config path exists |
-| `vyos_config_diff` | Show config differences (saved vs running, or by revision) |
+| `vyos_config_diff` | Show what a commit revision changed (default: most recent) |
 | `vyos_config_history` | List config revision history (number, timestamp, user, method) |
 | `vyos_show` | Run operational show commands |
 | `vyos_validate` | Validate config syntax (temporary apply with auto-rollback) |

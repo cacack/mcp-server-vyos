@@ -41,6 +41,7 @@ dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 - A commit-confirm while one is pending still commits, then returns HTTP 400 "Another confirm is pending"; the pending timer reverts both on expiry
 - `reboot`/`poweroff` require `"path": ["now"]`
 - `/retrieve` supports three ops: `showConfig`, `returnValues`, `exists`
+- Config diffs: `/show` rejects `configuration compare` (config-mode), and `system commit diff N` returns empty `data` for any N. `system commit file N` works (unknown N → `success: true` with a traceback in `data`), so `config_diff` diffs revision files client-side. The API has no running-vs-saved comparison
 - `ping`/`traceroute` are NOT `show` subcommands — `/show` rejects them. `/traceroute` is a dedicated endpoint taking `{"op": "traceroute", "host": ...}` and returns an mtr report in `data`. There is no `/ping` endpoint (absent from the API's OpenAPI schema)
 
 ## Testing
