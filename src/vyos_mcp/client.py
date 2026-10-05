@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import json
 import os
 import re
@@ -116,6 +117,9 @@ _BACKGROUND_COMMIT_MARKER = "commit will be called in the background"
 # Returned (HTTP 400) when a commit-confirm is already pending. The router has
 # already committed the new changes by then, with no rollback timer of their own.
 _CONFIRM_PENDING_MARKER = "another confirm is pending"
+# `show system commit file N` for a revision that doesn't exist returns
+# `success: true` with a Python traceback in `data` ending in this message.
+_REVISION_MISSING_MARKER = "revision not available"
 
 
 def _check_commit_confirm_armed(result: dict) -> dict:
@@ -279,16 +283,68 @@ class VyOSClient:
             payload["string"] = string
         return await self._post("config-file", payload)
 
-    async def config_diff(self, rev: int | None = None) -> dict:
-        """Show configuration differences.
+    async def _commit_file(self, rev: int) -> str | None:
+        """Fetch the config.boot text archived for commit revision `rev`.
 
-        Compares running config against saved config, or against a
-        specific revision number.
+        Returns None when the router reports the revision doesn't exist
+        (`success: true` with a traceback in `data`; see
+        `_REVISION_MISSING_MARKER`). Raises ValueError carrying the
+        router's reason for any other failure, including an HTTP error.
         """
-        path = ["configuration", "compare"]
-        if rev is not None:
-            path.append(str(rev))
-        return await self.show(path)
+        try:
+            result = await self.show(["system", "commit", "file", str(rev)])
+        except httpx.HTTPStatusError as e:
+            raise ValueError(
+                f"Could not fetch config revision {rev}: {e.response.text.strip()}"
+            ) from e
+        data = result.get("data")
+        if not result.get("success") or not isinstance(data, str):
+            raise ValueError(
+                f"Could not fetch config revision {rev}: {result.get('error')!r}"
+            )
+        if data.startswith("Traceback"):
+            if _REVISION_MISSING_MARKER in data:
+                return None
+            reason = data.strip().splitlines()[-1]
+            raise ValueError(f"Could not fetch config revision {rev}: {reason}")
+        return data
+
+    async def config_diff(self, rev: int | None = None) -> dict:
+        """Show the changes introduced by commit revision `rev`.
+
+        Diffs revision rev+1 against revision rev (None or 0 = most recent
+        commit) client-side: the router's own `show system commit diff`
+        returns empty output over the API, and the API exposes no
+        running-vs-saved comparison. Raises ValueError for a negative or
+        missing revision, for the oldest retained one (nothing to compare
+        with), or when the router fails to return a revision.
+        """
+        if rev is None:
+            rev = 0
+        if rev < 0:
+            raise ValueError(f"rev must be >= 0, got {rev}")
+        new = await self._commit_file(rev)
+        if new is None:
+            raise ValueError(f"Config revision {rev} is not available")
+        old = await self._commit_file(rev + 1)
+        if old is None:
+            raise ValueError(
+                f"Config revision {rev} is the oldest retained revision; "
+                "there is no earlier revision to compare it with"
+            )
+        # Normalize the trailing newline so a final line lacking one can't
+        # run into the next diff line.
+        diff = "".join(
+            difflib.unified_diff(
+                (old.rstrip("\n") + "\n").splitlines(keepends=True),
+                (new.rstrip("\n") + "\n").splitlines(keepends=True),
+                fromfile=f"revision {rev + 1}",
+                tofile=f"revision {rev}",
+            )
+        )
+        if not diff:
+            diff = f"No changes between revisions {rev + 1} and {rev}"
+        return {"success": True, "data": diff, "error": None}
 
     async def config_history(self) -> list[dict]:
         """List configuration commit revisions, newest first.

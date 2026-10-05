@@ -23,6 +23,36 @@ def make_client(**kwargs) -> VyOSClient:
     return VyOSClient(url=URL, api_key=KEY, **kwargs)
 
 
+# What `show system commit file N` returns for a revision that doesn't exist.
+MISSING_REVISION = {
+    "success": True,
+    "data": "Traceback (most recent call last):\n  ...\n"
+    "vyos.config_mgmt.ConfigMgmtError: revision not available\n",
+    "error": None,
+}
+
+
+def commit_files(files: dict[int, str | dict]):
+    """_post side effect serving `show system commit file N` from `files`.
+
+    A str value is served as that revision's text and a dict as the raw
+    response. Revisions not in `files` get MISSING_REVISION.
+    """
+
+    def side_effect(endpoint, data):
+        served = files.get(int(data["path"][-1]), MISSING_REVISION)
+        if isinstance(served, str):
+            return {"success": True, "data": served, "error": None}
+        return served
+
+    return side_effect
+
+
+def commit_file_call(rev: int):
+    """The _post call that fetches commit revision `rev`."""
+    return call("show", {"op": "show", "path": ["system", "commit", "file", str(rev)]})
+
+
 class TestInit:
     def test_requires_url(self):
         with pytest.raises(ValueError, match="VyOS URL required"):
@@ -228,16 +258,84 @@ class TestPayloads:
         )
 
     async def test_config_diff_default(self, client):
-        await client.config_diff()
-        client._post.assert_called_once_with(
-            "show", {"op": "show", "path": ["configuration", "compare"]}
-        )
+        client._post.side_effect = commit_files({0: "a\nb-new\n", 1: "a\nb-old\n"})
+        result = await client.config_diff()
+        assert client._post.call_args_list == [commit_file_call(0), commit_file_call(1)]
+        assert result["success"] is True
+        assert "--- revision 1" in result["data"]
+        assert "+++ revision 0" in result["data"]
+        assert "-b-old\n" in result["data"]
+        assert "+b-new\n" in result["data"]
+
+    async def test_config_diff_none_means_latest(self, client):
+        client._post.side_effect = commit_files({0: "x\n", 1: "y\n"})
+        await client.config_diff(None)
+        assert client._post.call_args_list == [commit_file_call(0), commit_file_call(1)]
 
     async def test_config_diff_with_rev(self, client):
+        client._post.side_effect = commit_files({5: "x\n", 6: "y\n"})
         await client.config_diff(rev=5)
-        client._post.assert_called_once_with(
-            "show", {"op": "show", "path": ["configuration", "compare", "5"]}
+        assert client._post.call_args_list == [commit_file_call(5), commit_file_call(6)]
+
+    async def test_config_diff_no_changes(self, client):
+        client._post.side_effect = commit_files({0: "same\n", 1: "same\n"})
+        result = await client.config_diff()
+        assert result["data"] == "No changes between revisions 1 and 0"
+
+    async def test_config_diff_missing_final_newline(self, client):
+        # A last line without "\n" must not run into the next diff line.
+        client._post.side_effect = commit_files({0: "a\nnew", 1: "a\nold"})
+        result = await client.config_diff()
+        assert "-old\n+new\n" in result["data"]
+
+    async def test_config_diff_unavailable_rev(self, client):
+        client._post.side_effect = commit_files({})
+        with pytest.raises(ValueError, match="revision 999 is not available"):
+            await client.config_diff(rev=999)
+
+    async def test_config_diff_oldest_rev(self, client):
+        client._post.side_effect = commit_files({0: "a\n"})
+        with pytest.raises(ValueError, match="oldest retained revision"):
+            await client.config_diff()
+
+    async def test_config_diff_other_failure_is_not_oldest(self, client):
+        # Only the router's "revision not available" means rev is the oldest.
+        failed = {"success": False, "data": None, "error": "boom"}
+        client._post.side_effect = commit_files({0: "a\n", 1: failed})
+        with pytest.raises(ValueError, match="revision 1: 'boom'") as exc:
+            await client.config_diff()
+        assert "oldest" not in str(exc.value)
+
+    async def test_config_diff_non_string_data(self, client):
+        weird = {"success": True, "data": None, "error": None}
+        client._post.side_effect = commit_files({0: weird})
+        with pytest.raises(ValueError, match="Could not fetch config revision 0"):
+            await client.config_diff()
+
+    async def test_config_diff_unexpected_traceback(self, client):
+        crash = {
+            "success": True,
+            "data": "Traceback (most recent call last):\n  ...\nOSError: disk\n",
+            "error": None,
+        }
+        client._post.side_effect = commit_files({0: "a\n", 1: crash})
+        with pytest.raises(ValueError, match="revision 1: OSError: disk"):
+            await client.config_diff()
+
+    async def test_config_diff_http_error(self, client):
+        request = httpx.Request("POST", f"{URL}/show")
+        client._post.side_effect = httpx.HTTPStatusError(
+            "400",
+            request=request,
+            response=httpx.Response(400, text='{"error": "bad"}', request=request),
         )
+        with pytest.raises(ValueError, match='revision 0: {"error": "bad"}'):
+            await client.config_diff()
+
+    async def test_config_diff_rejects_negative_rev(self, client):
+        with pytest.raises(ValueError, match="rev must be >= 0"):
+            await client.config_diff(rev=-1)
+        client._post.assert_not_called()
 
     async def test_config_history(self, client):
         await client.config_history()
