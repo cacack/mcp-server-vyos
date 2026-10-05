@@ -42,7 +42,7 @@ dependencies in `pyproject.toml`, run `uv lock` and commit the result.
 - `reboot`/`poweroff` require `"path": ["now"]`
 - `/retrieve` supports three ops: `showConfig`, `returnValues`, `exists`
 - Config diffs: `/show` rejects `configuration compare` (config-mode), and `system commit diff N` returns empty `data` for any N. `system commit file N` works (unknown N → `success: true` with a traceback in `data`), so `config_diff` diffs revision files client-side. The API has no running-vs-saved comparison
-- `ping`/`traceroute` are NOT `show` subcommands — `/show` rejects them. `/traceroute` is a dedicated endpoint taking `{"op": "traceroute", "host": ...}` and returns an mtr report in `data`. There is no `/ping` endpoint (absent from the API's OpenAPI schema)
+- `ping`/`traceroute` are NOT `show` subcommands — `/show` rejects them. `/traceroute` is a dedicated endpoint taking `{"op": "traceroute", "host": ..., "vrf"?}` and returns an mtr report in `data` (`vrf` is T9223, rolling ≥ 2026-08-24; older routers silently ignore unknown fields). `/ping` (vyos-1x T9224, rolling ≥ 2026.08.18) takes `{"op": "ping", "host": ..., "count": 1–10 (default 5), "vrf"?}`; older routers return 404 with an nginx HTML body. Both run the command as argv and return HTTP 400 with its output as `error` on a nonzero exit — for ping, any run with no reply
 
 ## Testing
 

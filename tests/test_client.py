@@ -381,6 +381,103 @@ class TestPayloads:
             await client.traceroute("8.8.8.8; rm -rf /")
         client._post.assert_not_called()
 
+    async def test_traceroute_vrf(self, client):
+        await client.traceroute("8.8.8.8", vrf="mgmt")
+        client._post.assert_called_once_with(
+            "traceroute", {"op": "traceroute", "host": "8.8.8.8", "vrf": "mgmt"}
+        )
+
+    async def test_traceroute_rejects_bad_vrf(self, client):
+        with pytest.raises(ValueError, match="Invalid VRF"):
+            await client.traceroute("8.8.8.8", vrf="a b")
+        client._post.assert_not_called()
+
+    async def test_ping_defaults(self, client):
+        await client.ping("192.0.2.1")
+        client._post.assert_called_once_with(
+            "ping", {"op": "ping", "host": "192.0.2.1", "count": 5}
+        )
+
+    async def test_ping_count_and_vrf(self, client):
+        await client.ping("192.0.2.1", count=2, vrf="mgmt")
+        client._post.assert_called_once_with(
+            "ping", {"op": "ping", "host": "192.0.2.1", "count": 2, "vrf": "mgmt"}
+        )
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"host": "a;b"}, "Invalid host"),
+            ({"host": "192.0.2.1", "vrf": "x;y"}, "Invalid VRF"),
+            ({"host": "192.0.2.1", "count": 0}, "between 1 and 10"),
+            ({"host": "192.0.2.1", "count": 11}, "between 1 and 10"),
+            ({"host": "192.0.2.1", "count": True}, "between 1 and 10"),
+        ],
+    )
+    async def test_ping_rejects_bad_input(self, client, kwargs, message):
+        with pytest.raises(ValueError, match=message):
+            await client.ping(**kwargs)
+        client._post.assert_not_called()
+
+    async def test_ping_missing_endpoint(self, client):
+        request = httpx.Request("POST", f"{URL}/ping")
+        client._post.side_effect = httpx.HTTPStatusError(
+            "404",
+            request=request,
+            response=httpx.Response(404, text="<html>nginx</html>", request=request),
+        )
+        with pytest.raises(RuntimeError, match="2026.08.18 or later"):
+            await client.ping("192.0.2.1")
+
+    @pytest.mark.parametrize(
+        ("status", "body", "message"),
+        [
+            # No reply: ping exits nonzero and the router returns its output.
+            (400, '{"success": false, "error": "100% packet loss"}', "100% packet"),
+            (401, "Unauthorized", "Unauthorized"),
+            (500, '{"error": "internal"}', "internal"),
+        ],
+    )
+    async def test_ping_http_error_carries_router_text(
+        self, client, status, body, message
+    ):
+        request = httpx.Request("POST", f"{URL}/ping")
+        client._post.side_effect = httpx.HTTPStatusError(
+            str(status),
+            request=request,
+            response=httpx.Response(status, text=body, request=request),
+        )
+        with pytest.raises(RuntimeError, match=f"192.0.2.1 failed: {message}"):
+            await client.ping("192.0.2.1")
+
+    async def test_traceroute_http_error_carries_router_text(self, client):
+        request = httpx.Request("POST", f"{URL}/traceroute")
+        client._post.side_effect = httpx.HTTPStatusError(
+            "400",
+            request=request,
+            response=httpx.Response(
+                400, text='{"error": "VRF mgmt does not exist"}', request=request
+            ),
+        )
+        with pytest.raises(RuntimeError, match="failed: VRF mgmt does not exist"):
+            await client.traceroute("8.8.8.8", vrf="mgmt")
+
+    @pytest.mark.parametrize("host", ["-f", "8.8.8.8\n", ""])
+    async def test_rejects_option_or_newline_host(self, client, host):
+        with pytest.raises(ValueError, match="Invalid host"):
+            await client.ping(host)
+        client._post.assert_not_called()
+
+    @pytest.mark.parametrize("vrf", ["-I", "mgmt\n", ""])
+    async def test_rejects_option_or_newline_vrf(self, client, vrf):
+        with pytest.raises(ValueError, match="Invalid VRF"):
+            await client.ping("192.0.2.1", vrf=vrf)
+        client._post.assert_not_called()
+
+    async def test_ping_accepts_ipv6(self, client):
+        await client.ping("::1")
+        assert client._post.call_args.args[1]["host"] == "::1"
+
     async def test_interface_stats_all(self, client):
         await client.interface_stats()
         client._post.assert_called_once_with(

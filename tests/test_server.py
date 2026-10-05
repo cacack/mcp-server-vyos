@@ -17,6 +17,7 @@ EXPECTED_TOOLS = [
     "vyos_config_history",
     "vyos_show",
     "vyos_traceroute",
+    "vyos_ping",
     "vyos_interface_stats",
     "vyos_system_resources",
     "vyos_route_table",
@@ -47,6 +48,7 @@ READ_ONLY_TOOLS = [
     "vyos_config_history",
     "vyos_show",
     "vyos_traceroute",
+    "vyos_ping",
     "vyos_interface_stats",
     "vyos_system_resources",
     "vyos_route_table",
@@ -74,7 +76,7 @@ async def test_no_unexpected_tools():
 
 async def test_tool_count():
     """Verify total tool count matches expectations."""
-    assert len(await mcp.list_tools()) == 27
+    assert len(await mcp.list_tools()) == 28
 
 
 class TestToolHandlers:
@@ -99,6 +101,7 @@ class TestToolHandlers:
         ]
         client.show.return_value = {"data": "output"}
         client.traceroute.return_value = {"data": {"report": {}}}
+        client.ping.return_value = {"data": "5 packets transmitted"}
         # Distinct values per arg so a handler that ignores `interface` fails.
         client.interface_stats.side_effect = lambda interface=None: (
             {"data": "all-ifaces"} if interface is None else {"data": "one-iface"}
@@ -219,8 +222,23 @@ class TestToolHandlers:
 
         with patch("vyos_mcp.server._get_client", return_value=mock_client):
             result = await vyos_traceroute("8.8.8.8")
-        mock_client.traceroute.assert_called_once_with("8.8.8.8")
+        mock_client.traceroute.assert_called_once_with("8.8.8.8", None)
         assert result == {"data": {"report": {}}}
+
+    async def test_vyos_traceroute_vrf(self, mock_client):
+        from vyos_mcp.server import vyos_traceroute
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            await vyos_traceroute("8.8.8.8", vrf="mgmt")
+        mock_client.traceroute.assert_called_once_with("8.8.8.8", "mgmt")
+
+    async def test_vyos_ping(self, mock_client):
+        from vyos_mcp.server import vyos_ping
+
+        with patch("vyos_mcp.server._get_client", return_value=mock_client):
+            result = await vyos_ping("8.8.8.8", count=3, vrf="mgmt")
+        mock_client.ping.assert_called_once_with("8.8.8.8", 3, "mgmt")
+        assert result == {"data": "5 packets transmitted"}
 
     async def test_vyos_interface_stats_all(self, mock_client):
         from vyos_mcp.server import vyos_interface_stats
@@ -458,7 +476,7 @@ class TestReadOnlyMode:
     async def test_read_only_tool_count(self, monkeypatch):
         monkeypatch.setenv("VYOS_READ_ONLY", "true")
         mcp_ro = self._reload_server()
-        assert len(await mcp_ro.list_tools()) == 15
+        assert len(await mcp_ro.list_tools()) == 16
 
 
 class TestToolErrors:
