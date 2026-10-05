@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/cacack/mcp-server-vyos/compare/v0.5.1...v0.6.0) (2026-10-05)
+
+
+### Features
+
+* add vyos_ping tool for the /ping REST endpoint ([15f5ddd](https://github.com/cacack/mcp-server-vyos/commit/15f5ddde2608cf4c1b86ce9cda6dad4756c953ae))
+
+
+### Bug Fixes
+
+* diff config revisions client-side so vyos_config_diff stops 400ing ([323d6e8](https://github.com/cacack/mcp-server-vyos/commit/323d6e8237f2fce868c50c08ca8c4cdfa5d05492)), closes [#47](https://github.com/cacack/mcp-server-vyos/issues/47)
+
 ## [0.5.1](https://github.com/cacack/mcp-server-vyos/compare/v0.5.0...v0.5.1) (2026-10-04)
 
 
