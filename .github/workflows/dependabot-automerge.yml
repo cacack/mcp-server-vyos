@@ -8,8 +8,9 @@ on: pull_request_target
 #
 # The two secrets are mapped by name rather than passed with `secrets:
 # inherit`, which would hand this workflow every secret the repo holds to
-# satisfy a contract that declares exactly two. They belong to the
-# mcp-server-vyos-steward App, whose Workflows: write is what lets auto-merge
+# satisfy a contract that declares exactly two. They belong to the shared
+# Dependabot App, stored in this repo's `dependabot` environment (see
+# cacack/workflows, "The Dependabot App"). Its Workflows: write lets auto-merge
 # be enabled on the Dependabot PRs that edit .github/workflows/* — a permission
 # GITHUB_TOKEN cannot be granted. An App token also makes the resulting merge
 # commit trigger CI, which a GITHUB_TOKEN push does not.
@@ -23,7 +24,7 @@ permissions:
 
 jobs:
   automerge:
-    uses: cacack/workflows/.github/workflows/dependabot-automerge.yml@9c4e052cf489c8721c0570d64c6bf307ceb82036 # v2.3.0
+    uses: cacack/workflows/.github/workflows/dependabot-automerge.yml@8c32eefebab14d35b588034d5bca5178d781acf6 # v2.4.0
     secrets:
       BOT_APP_ID: ${{ secrets.BOT_APP_ID }}
       BOT_PRIVATE_KEY: ${{ secrets.BOT_PRIVATE_KEY }}
